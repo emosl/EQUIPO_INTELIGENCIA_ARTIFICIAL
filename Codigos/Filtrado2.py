@@ -16,8 +16,8 @@ columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
 
 file_prefix = 'S'
-input_dir = '../Grabaciones/'
-output_dir = '../Procesado/'
+input_dir = os.path.join(os.path.dirname(__file__), '../Grabaciones/')
+output_dir = os.path.join(os.path.dirname(__file__), '../Procesado/')
 
 def cropData(data, counter):
     indices_to_drop = []
@@ -126,4 +126,7 @@ for i in range(1, file_count + 1):
     input_path = os.path.join(input_dir, f"{file_prefix}{i}.csv")
     output_path = os.path.join(output_dir, f"{file_prefix}{i}_procesado.csv")
     
+    print(f"Processing file: {input_path}")
+    print(f"Output file: {output_path}")
+
     process_file(input_path, output_path)
