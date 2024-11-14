@@ -11,13 +11,22 @@ low_cutoff = 8/64
 high_cutoff = 16/64
 sampling_rate = 128
 
+counter_cols = [0]
 columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
 
 file_prefix = 'S'
-input_dir = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Grabaciones/'
-output_dir = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Procesado/'
+input_dir = '../Grabaciones/'
+output_dir = '../Procesado/'
 
+def cropData(data, counter):
+    indices_to_drop = []
+    checkpoint = 1
+    for i in range(len(counter)):
+        if counter[checkpoint] == counter[i]:
+            indices_to_drop.append(i)
+        checkpoint = i
+    return data.drop(indices_to_drop)
 
 def detect_repeated_values(data, threshold=38400):
     error_messages = []
@@ -86,8 +95,12 @@ def removeDCPassFilter(array, order, low, high, Fs):
     return newArray
 
 def process_file(input_path, output_path):
+    counter = pd.read_csv(input_path, usecols=counter_cols)
     data = pd.read_csv(input_path, usecols=columns_to_use, names=column_names, header=0, skipinitialspace=True)
     filtered_data = data.iloc[:, :]
+    trueCounter = counter.iloc[:, 0]
+
+    filtered_data = cropData(filtered_data, trueCounter)
     
     print(f"Reading file: {input_path}")
     print("Data head:\n", data.head())  
