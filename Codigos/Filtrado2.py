@@ -177,7 +177,7 @@ def process_file(input_path, output_path):
     final_tensor = removeDCPassFilter(tensor, order=4, low=low_cutoff, high=high_cutoff, Fs=sampling_rate)
     
 
-    flat_data = final_tensor.transpose(0, 2, 1).reshape(-1, final_tensor.shape[1])
+    flat_data = final_tensor.reshape(-1, final_tensor.shape[1])
 
     processed_df = pd.DataFrame(flat_data, columns=column_names)
     
