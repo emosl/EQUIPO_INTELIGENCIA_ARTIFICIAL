@@ -1,34 +1,77 @@
-import pandas as pd
-import numpy as np
-from scipy import signal
 import os
 import math
+import numpy as np
+import pandas as pd
 
-order = 4
-file_count = 19
-chunk_size = 128
-low_cutoff = 8/64
-high_cutoff = 16/64
-sampling_rate = 128
+from scipy import signal
 
-counter_cols = [0]
-columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
+order = 4 # Order of the filter
+file_count = 19 # Number of files
+chunk_size = 128 # Samples in each second
+low_cutoff = 8/64 # Nyquist frequency for low cutoff
+high_cutoff = 16/64 # Nyquist frequency for high cutoff
+sampling_rate = 128 # Sampling rate
 
+counter_cols = [0] # Counter column of the dataset
+columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] # The columns that contain sensor information
+column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] # The names of the sensors
+
+# Strings for the input and output directories
 file_prefix = 'S'
 input_dir = os.path.join(os.path.dirname(__file__), '../Grabaciones/')
 output_dir = os.path.join(os.path.dirname(__file__), '../Procesado/')
 
-def cropData(data, counter):
-    indices_to_drop = []
+
+def cropData(data):
+    """
+    This function traverses a given dataset and searches for repeated values in 
+    the counter column and then drops the corresponding rows in the dataset.
+
+    Parameters:
+        - data (pandas.DataFrame): The dataset to be processed.
+
+    It does so by:
+        1. Resetting the index of the dataset.
+        2. Reading the counter column from the dataset.
+        3. Creating a list of indices to drop based on the counter column.
+        4. Dropping the indices from the dataset.
+
+    Returns:
+        - filtered_data (pandas.DataFrame): The dataset with repeated values removed.
+    """
+    data.reset_index(drop=True, inplace=True)
+    counter = pd.read_csv(input_path, usecols=counter_cols)
+    trueCounter = np.array(counter.index[:])
+    indicesToDrop = []
     checkpoint = 1
-    for i in range(len(counter)):
-        if counter[checkpoint] == counter[i]:
-            indices_to_drop.append(i)
+
+    for i in range(len(trueCounter)):
+        if trueCounter[checkpoint] == trueCounter[i]:
+            indicesToDrop.append(i)
         checkpoint = i
-    return data.drop(indices_to_drop)
+
+    return data.drop(indicesToDrop), indicesToDrop
 
 def detect_repeated_values(data, threshold=38400):
+    """
+    This function traverses a given dataset and searches for repeated values in 
+    each column. If repeated values are found, it prints a warning message and 
+    returns a list of error messages.
+
+    Parameters:
+        - data (pandas.DataFrame): The dataset to be processed.
+        - threshold (int, optional): The threshold for repeated values in number of samples. Defaults to 38400 or 300 seconds.
+
+    It does so by:
+        1. Iterating over each column in the dataset.
+        2. Counting the repeated values in each column.
+        3. Checking if any value count exceeds the threshold.
+        4. If a repeated value is found, it prints a warning message and returns a list of error messages.
+
+    Returns:  
+        - tensor (numpy.ndarray): A 3D tensor containing the processed data.  
+        - error_messages (list): A list of error messages.
+    """
     error_messages = []
     sessionMatrix = []
     
@@ -72,11 +115,32 @@ def detect_repeated_values(data, threshold=38400):
 
     return tensor, error_messages
 
-def getFilter(order, low, high):
-    return signal.butter(order, [low, high], 'band')
 def removeDCPassFilter(array, order, low, high, Fs):
+    """
+    This function applies a Butterworth bandpass filter to a given array. And
+    returns a new array with the filtered data.
 
-    b, a = getFilter(order, low, high)
+    Parameters:
+        - array (numpy.ndarray): A 2D input array to be filtered.
+        - order (int): The order of the filter.
+        - low (float): The lower cutoff frequency of the filter.
+        - high (float): The higher cutoff frequency of the filter.
+        - Fs (float): The sampling rate of the data.
+    
+    It does so by: 
+        1.- Applying the scipy implementation of the butterworth filter 
+        `butter`.
+        2.- It then creates a new array of the same shape as the input array 
+        filled with zeros.
+        3.- Next, it applies the `filtfilt` function to each element of the 
+        input array to remove phase distortion.
+        4.- Finally, it deletes the rows of the new array that have all zeros in 
+        them.
+
+    Returns:
+        - newArray (numpy.ndarray): A 2D array with the filtered data.
+    """
+    b, a = signal.butter(order, [low, high], 'band')
     newArray = np.full_like(array, 0)
     second = 0
     
@@ -95,12 +159,10 @@ def removeDCPassFilter(array, order, low, high, Fs):
     return newArray
 
 def process_file(input_path, output_path):
-    counter = pd.read_csv(input_path, usecols=counter_cols)
     data = pd.read_csv(input_path, usecols=columns_to_use, names=column_names, header=0, skipinitialspace=True)
     filtered_data = data.iloc[:, :]
-    trueCounter = counter.iloc[:, 0]
 
-    filtered_data = cropData(filtered_data, trueCounter)
+    filtered_data, dropped_indices = cropData(filtered_data)
     
     print(f"Reading file: {input_path}")
     print("Data head:\n", data.head())  
