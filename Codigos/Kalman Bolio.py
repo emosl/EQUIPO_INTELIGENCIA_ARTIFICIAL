@@ -94,6 +94,12 @@ def ldl_decomposition(P):
     Parameters:
     P (numpy.ndarray): The process covariance matrix to be decomposed.
 
+    It does so by:
+    1.- Using the ldl function from the scipy.linalg module to perform the LDL 
+    decomposition of P.
+    2.- Storing the upper triangular matrix of the decomposition in S by 
+    transposing it.
+
     Returns:
     S (numpy.ndarray): The upper triangular matrix of the decomposition.
     """
