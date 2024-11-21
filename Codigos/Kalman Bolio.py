@@ -15,8 +15,46 @@ dataUser1.columns = dataUser1.columns.str.strip()
 
 Fs = 128 # Sampling frequency
 m = 14 # Number of sensors
-process_noise_std = 1e-2 
-measurement_noise_std = 1e-1
+
+def observation_matrices(m_all, m_significant, m_non_significant):
+    """
+    This function returns the observation matrices for a given number of sensors 
+    (m_all), significant sensors (m_significant), and non-significant sensors 
+    (m_non_significant).
+
+    Parameters:
+        - m_all (int): The total number of sensors.
+        - m_significant (int): The number of significant sensors.
+        - m_non_significant (int): The number of non-significant sensors.
+
+    It does so by: 
+        1.- Creating an identity matrix of size m_all x m_all.
+        2.- Creating a zero matrix of size m_significant x m_all.
+        3.- Creating a zero matrix of size m_non_significant x m_all.
+        4.- Filling the last three columns of the H_significant matrix with 1s 
+        to take into account the three significant sensors.
+        5.- Filling the diagonal of the H_non_significant matrix with 1s to take 
+        into account the non-significant sensors.
+
+    Returns:
+        - H_all (numpy.ndarray): The identity matrix of size m_all x m_all.
+        - H_significant (numpy.ndarray): The significant observation matrix of 
+        size m_significant x m_all.
+        - H_non_significant (numpy.ndarray): The non-significant observation 
+        matrix of size m_non_significant x m_all.
+    """
+    H_all = np.identity(m_all)
+    H_significant = np.zeros(m_significant, m_all)
+    H_non_significant = np.zeros(m_non_significant, m_all)
+
+    H_significant[0, -3] = 1
+    H_significant[1, -2] = 1
+    H_significant[2, -1] = 1
+
+    for i in range(m_non_significant):
+        H_non_significant[i, i] = 1
+
+    return H_all, H_significant, H_non_significant
 
 def taylor_series(m, Fs=128):
     """
@@ -97,114 +135,166 @@ def ldl_decomposition(P):
     It does so by:
     1.- Using the ldl function from the scipy.linalg module to perform the LDL 
     decomposition of P.
-    2.- Storing the upper triangular matrix of the decomposition in S by 
-    transposing it.
+    2.- Storing the lower triangular matrix of the decomposition in S.
 
     Returns:
-    S (numpy.ndarray): The upper triangular matrix of the decomposition.
+    S (numpy.ndarray): The lower triangular matrix of the decomposition.
     """
     L, D, perm = ldl(P)
     S = L @ sqrtm(D)
-    return S.T
+    return S
 
-def Givens(U):
-    rows, cols = U.shape
-    for j in range(cols):
-        for i in range(rows - 1, j, -1):
-            a = U[i - 1, j]
-            b = U[i, j]
-            if b == 0:
-                c, s = 1, 0
-            else:
-                if abs(b) > abs(a):
-                    r = a / b
-                    s = 1 / np.sqrt(1 + r**2)
-                    c = s * r
-                else:
-                    r = b / a
-                    c = 1 / np.sqrt(1 + r**2)
-                    s = c * r
+def givens_rotation(F, Q, S):
+  """
+  This function performs a Givens rotation on the matrix U to zero out the 
+  elements below the diagonal and ultimately output the upper triangular matrix.
 
-            B = np.identity(rows)
-            B[i - 1, i - 1] = c 
-            B[i, i] = c
-            B[i - 1, i] = s
-            B[i, i - 1] = -s 
-            U = np.dot(B, U)
-    return U
+  Parameters:
+  F (numpy.ndarray): The state transition matrix.
+  Q (numpy.ndarray): The process noise covariance matrix.
+  S (numpy.ndarray): The measurement noise covariance matrix.
 
-def Potter(x_p_t, S_p_t, y_t, H, R, I):
-    x_t = x_p_t
-    S_t = S_p_t
-    n = len(y_t)
+  It does so by:
+  1.- Concatenating the product of F.T and S.T with Q.T.
+  2.- Looping through the matrix to perform the Givens rotation.
+  3.- Storing the upper triangular matrix of the decomposition in S.
+
+  Returns:
+  S (numpy.ndarray): The upper triangular matrix of the decomposition.
+  """
+  m = S.shape[0]
+  U = np.concatenate([F.T @ S.T, np.sqrt(Q.T)], axis=0)
+
+  for j in range(m):
+    for i in range(2 * m - 1, j, -1):
+      B = np.eye(2 * m)
+      a = U[i-1, j]
+      b = U[i, j]
+
+      if b == 0:
+        c = 1
+        s = 0
+      elif abs(b) > abs(a):
+        r = a/b
+        s = 1/np.sqrt(1 + r**2)
+        c = s * r
+      else:
+        r = b/a
+        c = 1/np.sqrt(1 + r**2)
+        s = c * r
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+      U = np.dot(B.T, U)
+
+  S = U[:m, :m]
+  return S
+
+def potter(x_t_p, S_t_p, y_t, H, R, I):
+    x_i = x_t_p
+    S_i = S_t_p
+    n = y_t.shape[0]
+
+    phi_i = np.zeros((14, 1))
+
     for i in range(n):
-        H_i = H[i, :]
-        y_i_t = y_t[i]
-        R_i = R[i, i]
-        Phi_i = np.dot(S_t.T, H_i.T)
-        a_i = 1 / (np.dot(Phi_i.T, Phi_i) + R_i)
-        gamma_i = a_i / (1 + np.sqrt(a_i * R_i))
-        S_t = S_t * (I - a_i * gamma_i * np.dot(Phi_i, Phi_i.T))
-        K_i_t = np.dot(S_t, Phi_i)
-        x_t = x_t + K_i_t * (y_i_t - np.dot(H_i, x_t))
-    return x_t, S_t
+        H_i = H[i]
+        y_i = y_t[i].item()
+        R_i = np.var(R[i])
+
+        phi_i = S_i.T @ H_i.T
+        alpha_i = 1 / (phi_i.T @ phi_i + R_i)
+        gamma_i = alpha_i / (1 + math.sqrt(alpha_i * R_i))
+
+        S_i = S_i @ (np.eye(n) - alpha_i * gamma_i * (phi_i @ phi_i.T))
+        K_i = S_i @ phi_i
+        x_i = x_i + K_i * (y_i - phi_i.T @ x_i)
+
+    return x_i, S_i
 
 
-def EnKF(data, Fs, m, measurement_noise_std):
-    P = process_covariance_matrix(data)
-    F = taylor_series(m, Fs)
-    L, D, LT = LDL_T(F)
-    S = Givens(np.dot(np.dot(L, D), LT))
-    x_p_t = np.zeros(m)  
-    S_p_t = S
-    
-    y_t = data.iloc[0].values[:m]  
-    H = np.identity(m)  
-    R = np.identity(m) * measurement_noise_std  
-    I = np.identity(m)  
+def kalmanEnsemble(X, H):
+    results = []
 
-    x_t, S_t = Potter(x_p_t, S_p_t, y_t, H, R, I)
+    x = np.zeros((14, 1))
 
-    return x_t, S_t
+    x = X[0]
 
+    P = process_covariance_matrix(X)
+    S = ldl_decomposition(P)
+    S = S.T
 
-x_t, S_t = EnKF(dataUser1, Fs, m, process_noise_std, measurement_noise_std)
+    F = taylor_series(len(x))
 
+    # First iteration
+    w = np.random.normal(size=(len(x)))
 
+    Q = np.identity(len(x)) * np.std(w)
 
-time = range(len(dataUser1))  
-sensor_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
+    xp = F @ x + w
 
-meaningful_sensors = ['F4', 'F8', 'AF4']
-kalman_data = dataUser1.rolling(window=5).mean()
+    Sp = givens_rotation(F, Q, S)
 
-fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
+    z = np.random.normal(size=(len(H)))
+    R = np.identity(len(x)) * np.std(z)
 
-for i, label in enumerate(meaningful_sensors):
-    sensor_data = dataUser1[label]
-    axs[i].plot(time, sensor_data, color='lightsteelblue')
-    axs[i].set_title(f'Sensor {label}: Comparacion de Señal Original y Filtrada')
-    axs[i].set_xlabel('Time')
-    axs[i].set_ylabel('Sensor Reading')
-    axs[i].set_facecolor('slategray')
-    axs[i].grid(True, color='darkslategray')
+    y_t = H @ x + z
+    x_prev, S_prev = potter(xp, Sp, y_t, H, R)
 
-plt.tight_layout()
-plt.show()
+    results.append(x_prev)
 
-fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
-for i, label in enumerate(meaningful_sensors):
-    sensor_data = dataUser1[label] 
-    kalman_sensor_data = kalman_data[label]   
-    axs[i].plot(time, sensor_data, label=f'Original {label}', color='lightsteelblue')
-    axs[i].plot(time, kalman_sensor_data, label=f'Kalman {label}', color='lime')  
-    axs[i].set_title(f'Sensor {label}')
-    axs[i].set_xlabel('Time')
-    axs[i].set_ylabel('Sensor Reading')
-    axs[i].set_facecolor('slategray')
-    axs[i].grid(True, color='darkslategray')
-    axs[i].legend()
+    for i in range(1, len(X)):
+        w = np.random.normal(size=(len(x)))
+        Q = np.identity(len(x)) * np.std(w)
 
-plt.suptitle('Comparacion de Señal Original y Filtrada con Filtro de Kalman', fontsize=16)
-plt.tight_layout()
-plt.show()
+        xp = F @ x_prev + w
+        Sp = givens_rotation(F, Q, S_prev)
+        z = np.random.normal(size=(len(H)))
+
+        R = np.identity(len(H)) * np.std(z)
+
+        y_t = H @ x + z
+
+        x_prev, S_prev = potter(xp, Sp, y_t, H, R)
+
+        results.append(x_prev)
+
+    return results
+
+results = kalmanEnsemble(dataUser1.iloc[:, :14], )
+
+# time = range(len(dataUser1))  
+# sensor_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
+
+# meaningful_sensors = ['F4', 'F8', 'AF4']
+# kalman_data = dataUser1.rolling(window=5).mean()
+
+# fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
+
+# for i, label in enumerate(meaningful_sensors):
+#     sensor_data = dataUser1[label]
+#     axs[i].plot(time, sensor_data, color='lightsteelblue')
+#     axs[i].set_title(f'Sensor {label}: Comparacion de Señal Original y Filtrada')
+#     axs[i].set_xlabel('Time')
+#     axs[i].set_ylabel('Sensor Reading')
+#     axs[i].set_facecolor('slategray')
+#     axs[i].grid(True, color='darkslategray')
+
+# plt.tight_layout()
+# plt.show()
+
+# fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
+# for i, label in enumerate(meaningful_sensors):
+#     sensor_data = dataUser1[label] 
+#     kalman_sensor_data = kalman_data[label]   
+#     axs[i].plot(time, sensor_data, label=f'Original {label}', color='lightsteelblue')
+#     axs[i].plot(time, kalman_sensor_data, label=f'Kalman {label}', color='lime')  
+#     axs[i].set_title(f'Sensor {label}')
+#     axs[i].set_xlabel('Time')
+#     axs[i].set_ylabel('Sensor Reading')
+#     axs[i].set_facecolor('slategray')
+#     axs[i].grid(True, color='darkslategray')
+#     axs[i].legend()
+
+# plt.suptitle('Comparacion de Señal Original y Filtrada con Filtro de Kalman', fontsize=16)
+# plt.tight_layout()
+# plt.show()
