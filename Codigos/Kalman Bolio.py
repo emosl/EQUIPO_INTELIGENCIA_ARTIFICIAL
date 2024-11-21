@@ -2,8 +2,10 @@ import os
 import math
 import numpy as np
 import pandas as pd
-from scipy.linalg import ldl, sqrtm
+import plotly.express as px
 import matplotlib.pyplot as plt
+
+from scipy.linalg import ldl, sqrtm
 
 current_path = os.path.dirname(__file__) # Get the directory of the current script
 file_path = '../ProcesadoMatlab/S1_matlab.csv' # Replace with the path to your CSV file
@@ -15,12 +17,14 @@ dataUser1.columns = dataUser1.columns.str.strip()
 
 Fs = 128 # Sampling frequency
 m = 14 # Number of sensors
+m_significant = 3 # Number of significant sensors [F4, F8, AF4]
+m_non_significant = 11 # Number of non-significant sensors [AF7, F7, F3, FC5, T7, P7, O1, O2, P8, T8, FC6]
 
 def observation_matrices(m_all, m_significant, m_non_significant):
     """
     This function returns the observation matrices for a given number of sensors 
-    (m_all), significant sensors (m_significant), and non-significant sensors 
-    (m_non_significant).
+    be that all sensors (m_all), significant sensors which are F4, F8 and AF4 
+    (m_significant), and non-significant sensors (m_non_significant).
 
     Parameters:
         - m_all (int): The total number of sensors.
@@ -86,7 +90,7 @@ def taylor_series(m, Fs=128):
 
             if i != j and j > i:
                 k = j - oneLoc[1]
-                F[i, j] = (deltaT ** k) / np.math.factorial(k)
+                F[i, j] = (deltaT ** k) / math.factorial(k)
 
     return F
 
@@ -146,7 +150,7 @@ def ldl_decomposition(P):
 
 def givens_rotation(F, Q, S):
   """
-  This function performs a Givens rotation on the matrix U to zero out the 
+  This function performs a Givens rotation on the matrix U to zero out the
   elements below the diagonal and ultimately output the upper triangular matrix.
 
   Parameters:
@@ -163,12 +167,12 @@ def givens_rotation(F, Q, S):
   S (numpy.ndarray): The upper triangular matrix of the decomposition.
   """
   m = S.shape[0]
-  U = np.concatenate([F.T @ S.T, np.sqrt(Q.T)], axis=0)
+  U = np.block([[S.T @ F.T], [sqrtm(Q).T]])
 
   for j in range(m):
     for i in range(2 * m - 1, j, -1):
       B = np.eye(2 * m)
-      a = U[i-1, j]
+      a = U[j, j]
       b = U[i, j]
 
       if b == 0:
@@ -183,13 +187,41 @@ def givens_rotation(F, Q, S):
         c = 1/np.sqrt(1 + r**2)
         s = c * r
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+      B[i - 1, i - 1] = c
+      B[i - 1, i] = s
+      B[i, i - 1] = -s
+      B[i, i] = c
+
       U = np.dot(B.T, U)
 
   S = U[:m, :m]
   return S
 
-def potter(x_t_p, S_t_p, y_t, H, R, I):
+def potter(x_t_p, S_t_p, y_t, H, R):
+    """
+    This function performs the Potter algorithm to update the state estimate and 
+    covariance matrix based on the measurement and measurement noise, it 
+    compares the predicted measurement with the actual measurement and updates 
+    based on the accuracy of the prediction.
+
+    Parameters:
+        - x_t_p (numpy.ndarray): The current predicted state estimate.
+        - S_t_p (numpy.ndarray): The current predicted covariance matrix.
+        - y_t (numpy.ndarray): The actual measurement.
+        - H (numpy.ndarray): The observation matrix.
+        - R (numpy.ndarray): The measurement noise covariance matrix.
+
+    It does so by:
+        1.- Looping through the sensors in the measurement.
+        2.- Calculating the prediction of the measurement.
+        3.- Calculating the Kalman gain.
+        4.- Updating the state estimate.
+        5.- Updating the covariance matrix.   
+
+    Returns:
+        - x_t (numpy.ndarray): The updated state estimate.
+        - S_t (numpy.ndarray): The updated covariance matrix.
+    """
     x_i = x_t_p
     S_i = S_t_p
     n = y_t.shape[0]
@@ -217,7 +249,7 @@ def kalmanEnsemble(X, H):
 
     x = np.zeros((14, 1))
 
-    x = X[0]
+    x = X.iloc[0, :]
 
     P = process_covariance_matrix(X)
     S = ldl_decomposition(P)
@@ -260,7 +292,11 @@ def kalmanEnsemble(X, H):
 
     return results
 
-results = kalmanEnsemble(dataUser1.iloc[:, :14], )
+H_all, H_significant, H_non_significant = observation_matrices(m, m_significant, m_non_significant)
+
+results_all = kalmanEnsemble(dataUser1.iloc[:, :], H_all)
+# results_significant = kalmanEnsemble(dataUser1.iloc[:, :], H_significant)
+# results_non_significant = kalmanEnsemble(dataUser1.iloc[:, :], H_non_significant)
 
 # time = range(len(dataUser1))  
 # sensor_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
