@@ -2,10 +2,10 @@ import os
 import math
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import matplotlib.pyplot as plt
 
 from scipy.linalg import ldl, sqrtm
+from numpy.linalg import cholesky, solve
 
 current_path = os.path.dirname(__file__) # Get the directory of the current script
 file_path = '../ProcesadoMatlab/S1_matlab.csv' # Replace with the path to your CSV file
@@ -199,9 +199,9 @@ def givens_rotation(F, Q, S):
 
 def potter(x_t_p, S_t_p, y_t, H, R):
     """
-    This function performs the Potter algorithm to update the state estimate and 
-    covariance matrix based on the measurement and measurement noise, it 
-    compares the predicted measurement with the actual measurement and updates 
+    This function performs the Potter algorithm to update the state estimate and
+    covariance matrix based on the measurement and measurement noise, it
+    compares the predicted measurement with the actual measurement and updates
     based on the accuracy of the prediction.
 
     Parameters:
@@ -216,7 +216,7 @@ def potter(x_t_p, S_t_p, y_t, H, R):
         2.- Calculating the prediction of the measurement.
         3.- Calculating the Kalman gain.
         4.- Updating the state estimate.
-        5.- Updating the covariance matrix.   
+        5.- Updating the covariance matrix.
 
     Returns:
         - x_t (numpy.ndarray): The updated state estimate.
@@ -225,72 +225,128 @@ def potter(x_t_p, S_t_p, y_t, H, R):
     x_i = x_t_p
     S_i = S_t_p
     n = y_t.shape[0]
+    I = np.eye(n)
 
     phi_i = np.zeros((14, 1))
 
     for i in range(n):
         H_i = H[i]
-        y_i = y_t[i].item()
+        y_i = y_t[i]
         R_i = np.var(R[i])
 
         phi_i = S_i.T @ H_i.T
         alpha_i = 1 / (phi_i.T @ phi_i + R_i)
         gamma_i = alpha_i / (1 + math.sqrt(alpha_i * R_i))
 
-        S_i = S_i @ (np.eye(n) - alpha_i * gamma_i * (phi_i @ phi_i.T))
+        S_i = S_i @ (I - (alpha_i * gamma_i * (phi_i @ phi_i.T)))
         K_i = S_i @ phi_i
         x_i = x_i + K_i * (y_i - phi_i.T @ x_i)
 
     return x_i, S_i
 
 
+def potter_sqrt(x_t_p, S_t_p, y_t, H, R_sqrt):
+    y = y_t - H @ x_t_p
+
+    S = cholesky(R_sqrt.T @ R_sqrt + H @ S_t_p.T @ H.T)
+    
+    K_sqrt = solve(S, (S_t_p.T @ H.T).T).T
+    updated_x = x_t_p + K_sqrt @ solve(S.T, y)
+
+    I_KH = np.eye(S_t_p.shape[0]) - K_sqrt @ H
+    updated_S = I_KH @ S_t_p
+
+    return updated_x, updated_S
+
+
+# def kalmanEnsemble(X, H):
+#     results = []
+
+#     x = np.zeros((14, 1))
+
+#     x = X.iloc[0, :]
+
+#     P = process_covariance_matrix(X)
+#     S = ldl_decomposition(P)
+#     S = S.T
+
+#     F = taylor_series(len(x))
+
+#     # First iteration
+#     w = np.random.normal(size=(len(x)))
+
+#     Q = np.identity(len(x)) * np.std(w)
+
+#     xp = F @ x + w
+
+#     Sp = givens_rotation(F, Q, S)
+
+#     z = np.random.normal(size=(len(H)))
+#     R = np.identity(len(x)) * np.std(z)
+
+#     y_t = H @ x + z
+#     x_prev, S_prev = potter(xp, Sp, y_t, H, R)
+
+#     results.append(x_prev)
+
+#     for i in range(1, len(X)):
+#         w = np.random.normal(size=(len(x)))
+#         Q = np.identity(len(x)) * np.std(w)
+
+#         xp = F @ x_prev + w
+#         Sp = givens_rotation(F, Q, S_prev)
+#         z = np.random.normal(size=(len(H)))
+
+#         R = np.identity(len(H)) * np.std(z)
+
+#         y_t = H @ x + z
+
+#         x_prev, S_prev = potter(xp, Sp, y_t, H, R)
+
+#         results.append(x_prev)
+
+#     return results
+
+
 def kalmanEnsemble(X, H):
     results = []
-
     x = np.zeros((14, 1))
 
-    x = X.iloc[0, :]
-
+    x_prev = X.iloc[0, :]
     P = process_covariance_matrix(X)
-    S = ldl_decomposition(P)
-    S = S.T
-
-    F = taylor_series(len(x))
-
-    # First iteration
-    w = np.random.normal(size=(len(x)))
-
-    Q = np.identity(len(x)) * np.std(w)
-
-    xp = F @ x + w
-
-    Sp = givens_rotation(F, Q, S)
-
-    z = np.random.normal(size=(len(H)))
-    R = np.identity(len(x)) * np.std(z)
-
-    y_t = H @ x + z
-    x_prev, S_prev = potter(xp, Sp, y_t, H, R)
-
-    results.append(x_prev)
+    S_prev = ldl_decomposition(P).T
 
     for i in range(1, len(X)):
-        w = np.random.normal(size=(len(x)))
-        Q = np.identity(len(x)) * np.std(w)
+        F = taylor_series(len(x)) # Calculate the transition matrix
 
-        xp = F @ x_prev + w
-        Sp = givens_rotation(F, Q, S_prev)
-        z = np.random.normal(size=(len(H)))
+        w = np.random.normal(size=(len(x))) # Get the gaussian white noise of the process
+        Q = np.eye(len(x)) * np.std(w) # Calculate the process noise covariance matrix
 
-        R = np.identity(len(H)) * np.std(z)
+        xp = F @ x_prev + w # Predict the next measurement
+        Sp = givens_rotation(F, Q, S_prev) # Predict the next S
+        
+        z = np.random.normal(size=(len(H))) # Get the gaussian white noise of the measurement
+        R = np.eye(len(H)) * np.std(z) # Calculate the measurement noise covariance matrix
 
-        y_t = H @ x + z
+        y_t = H @ X.iloc[i, :] + z
 
-        x_prev, S_prev = potter(xp, Sp, y_t, H, R)
+        print("predicted x")
+        print(xp)
+        print("predicted S")
+        print(Sp)
+        print("actual y")
+        print(y_t)
+        print("actual H")
+        print(H)
+        print("actual R")
+        print(R)
+
+        x_prev, S_prev = potter_sqrt(xp, Sp, y_t, H, R)
 
         results.append(x_prev)
 
     return results
+
 
 H_all, H_significant, H_non_significant = observation_matrices(m, m_significant, m_non_significant)
 
