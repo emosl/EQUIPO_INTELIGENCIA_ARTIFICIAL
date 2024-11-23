@@ -11,9 +11,8 @@ current_path = os.path.dirname(__file__) # Get the directory of the current scri
 file_path = '../ProcesadoMatlab/S1_matlab.csv' # Replace with the path to your CSV file
 rel_path = os.path.join(current_path, file_path) # The relative path to the CSV file to plot
 
-dataUser1 = pd.read_csv(rel_path) # Read the CSV file
-dataUser1.columns = dataUser1.columns.str.strip()
-
+X = np.genfromtxt('User1_Pre2.csv', delimiter=',', skip_header=1) # Read the CSV file
+sensors = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] # The names of the sensors
 
 Fs = 128 # Sampling frequency
 m = 14 # Number of sensors
@@ -22,8 +21,8 @@ m_non_significant = 11 # Number of non-significant sensors [AF7, F7, F3, FC5, T7
 
 def observation_matrices(m_all, m_significant, m_non_significant):
     """
-    This function returns the observation matrices for a given number of sensors 
-    be that all sensors (m_all), significant sensors which are F4, F8 and AF4 
+    This function returns the observation matrices for a given number of sensors
+    be that all sensors (m_all), significant sensors which are F4, F8 and AF4
     (m_significant), and non-significant sensors (m_non_significant).
 
     Parameters:
@@ -31,25 +30,25 @@ def observation_matrices(m_all, m_significant, m_non_significant):
         - m_significant (int): The number of significant sensors.
         - m_non_significant (int): The number of non-significant sensors.
 
-    It does so by: 
+    It does so by:
         1.- Creating an identity matrix of size m_all x m_all.
         2.- Creating a zero matrix of size m_significant x m_all.
         3.- Creating a zero matrix of size m_non_significant x m_all.
-        4.- Filling the last three columns of the H_significant matrix with 1s 
-        to take into account the three significant sensors.
-        5.- Filling the diagonal of the H_non_significant matrix with 1s to take 
-        into account the non-significant sensors.
+        4.- Filling the last three columns of the H_significant matrix with 1s
+            to take into account the three significant sensors.
+        5.- Filling the diagonal of the H_non_significant matrix with 1s to take
+            into account the non-significant sensors.
 
     Returns:
         - H_all (numpy.ndarray): The identity matrix of size m_all x m_all.
-        - H_significant (numpy.ndarray): The significant observation matrix of 
-        size m_significant x m_all.
-        - H_non_significant (numpy.ndarray): The non-significant observation 
-        matrix of size m_non_significant x m_all.
+        - H_significant (numpy.ndarray): The significant observation matrix of
+          size m_significant x m_all.
+        - H_non_significant (numpy.ndarray): The non-significant observation
+          matrix of size m_non_significant x m_all.
     """
     H_all = np.identity(m_all)
-    H_significant = np.zeros(m_significant, m_all)
-    H_non_significant = np.zeros(m_non_significant, m_all)
+    H_significant = np.zeros((m_significant, m_all))
+    H_non_significant = np.zeros((m_non_significant, m_all))
 
     H_significant[0, -3] = 1
     H_significant[1, -2] = 1
@@ -62,195 +61,139 @@ def observation_matrices(m_all, m_significant, m_non_significant):
 
 def taylor_series(m, Fs=128):
     """
-    This function returns the taylor series matrix or state transition matrix 
+    This function returns the taylor series matrix or state transition matrix
     for a given number of sensors (m) and sampling frequency (Fs)
 
     Parameters:
         - m (int): The number of sensors.
         - Fs (int): The sampling frequency.
 
-    It does so by: 
+    It does so by:
         1.- Creating an identity matrix of size m x m.
-        2.- Creating a tuple oneLoc that stores the location of the one in the 
-        identity matrix.
-        3.- Looping through the matrix to fill only the upper triangle with the 
-        taylor series values.
+        2.- Creating a tuple oneLoc that stores the location of the one in the
+            identity matrix.
+        3.- Looping through the matrix to fill only the upper triangle with the
+            taylor series values.
 
     Returns:
         - F (numpy.ndarray): The state transition matrix.
     """
     deltaT = 1 / Fs
     F = np.identity(m)
-    oneLoc = ()
 
     for i in range(m):
         for j in range(m):
-            if F[i, j] == 1:
-                oneLoc = (i, j)
-
-            if i != j and j > i:
-                k = j - oneLoc[1]
+            if i < j:
+                k = j - i
                 F[i, j] = (deltaT ** k) / math.factorial(k)
 
     return F
 
-def process_covariance_matrix(data):
-    """
-    This function calculates the process covariance matrix P for a given dataset.
-
-    Parameters:
-        - data (pandas.DataFrame): The dataset containing the sensor data.
-
-    It does so by:
-        1.- Getting the shape of the data and storing the number of columns in m.
-        2.- Creating a zero matrix of size m x m.
-        3.- Looping through the columns of the data:
-            3.1.- If the current element in the matrix is a diagonal element,
-            calculate the variance of the column and store it in the diagonal 
-            element P[i, i].
-            3.2.- If the current element in the matrix is not a diagonal element, 
-            calculate the covariance between the current column and the previous    
-            column and store it in the corresponding off-diagonal element of P.
-
-    Returns:
-        - P (numpy.ndarray): The process covariance matrix.
-    """
-    m = data.shape[1]
-    P = np.zeros((m, m))
-    for i in range(m):
-        for j in range(m):
-            if i == j:
-                sigma_a = data.iloc[:, i] - np.mean(data.iloc[:, i])
-                P[i, j] = np.sum((sigma_a ** 2) / len(data))
-            else:
-                sigma_a = data.iloc[:, i] - np.mean(data.iloc[:, i])
-                sigma_b = data.iloc[:, j] - np.mean(data.iloc[:, j])
-                P[i, j] = np.sum((sigma_a * sigma_b) / len(data))
-    return P
-
 def ldl_decomposition(P):
     """
-    This function performs the LDL decomposition of a given matrix P and 
+    This function performs the LDL decomposition of a given matrix P and
     produces an S matrix from it.
 
     Parameters:
-    P (numpy.ndarray): The process covariance matrix to be decomposed.
+        - P (numpy.ndarray): The process covariance matrix to be decomposed.
 
     It does so by:
-    1.- Using the ldl function from the scipy.linalg module to perform the LDL 
-    decomposition of P.
-    2.- Storing the lower triangular matrix of the decomposition in S.
+        1.- Using the ldl function from the scipy.linalg module to perform the LDL
+            decomposition of P.
+        2.- Storing the lower triangular matrix of the decomposition in S.
 
     Returns:
-    S (numpy.ndarray): The lower triangular matrix of the decomposition.
+        - S (numpy.ndarray): The lower triangular matrix of the decomposition.
     """
     L, D, perm = ldl(P)
     S = L @ sqrtm(D)
     return S
 
 def givens_rotation(F, Q, S):
-  """
-  This function performs a Givens rotation on the matrix U to zero out the
-  elements below the diagonal and ultimately output the upper triangular matrix.
-
-  Parameters:
-  F (numpy.ndarray): The state transition matrix.
-  Q (numpy.ndarray): The process noise covariance matrix.
-  S (numpy.ndarray): The measurement noise covariance matrix.
-
-  It does so by:
-  1.- Concatenating the product of F.T and S.T with Q.T.
-  2.- Looping through the matrix to perform the Givens rotation.
-  3.- Storing the upper triangular matrix of the decomposition in S.
-
-  Returns:
-  S (numpy.ndarray): The upper triangular matrix of the decomposition.
-  """
-  m = S.shape[0]
-  U = np.block([[S.T @ F.T], [sqrtm(Q).T]])
-
-  for j in range(m):
-    for i in range(2 * m - 1, j, -1):
-      B = np.eye(2 * m)
-      a = U[j, j]
-      b = U[i, j]
-
-      if b == 0:
-        c = 1
-        s = 0
-      elif abs(b) > abs(a):
-        r = a/b
-        s = 1/np.sqrt(1 + r**2)
-        c = s * r
-      else:
-        r = b/a
-        c = 1/np.sqrt(1 + r**2)
-        s = c * r
-
-      B[i - 1, i - 1] = c
-      B[i - 1, i] = s
-      B[i, i - 1] = -s
-      B[i, i] = c
-
-      U = np.dot(B.T, U)
-
-  S = U[:m, :m]
-  return S
-
-def potter(x_t_p, S_t_p, y_t, H, R):
     """
-    This function performs the Potter algorithm to update the state estimate and
-    covariance matrix based on the measurement and measurement noise, it
-    compares the predicted measurement with the actual measurement and updates
-    based on the accuracy of the prediction.
+    This function performs a Givens rotation on the matrix U to zero out the
+    elements below the diagonal and ultimately output the upper triangular matrix.
 
     Parameters:
-        - x_t_p (numpy.ndarray): The current predicted state estimate.
-        - S_t_p (numpy.ndarray): The current predicted covariance matrix.
-        - y_t (numpy.ndarray): The actual measurement.
-        - H (numpy.ndarray): The observation matrix.
-        - R (numpy.ndarray): The measurement noise covariance matrix.
+      - F (numpy.ndarray): The state transition matrix.
+      - Q (numpy.ndarray): The process noise covariance matrix.
+      - S (numpy.ndarray): The measurement noise covariance matrix.
 
     It does so by:
-        1.- Looping through the sensors in the measurement.
-        2.- Calculating the prediction of the measurement.
-        3.- Calculating the Kalman gain.
-        4.- Updating the state estimate.
-        5.- Updating the covariance matrix.
+      1.- Concatenating the product of F.T and S.T with Q.T.
+      2.- Looping through the matrix to perform the Givens rotation.
+      3.- Storing the upper triangular matrix of the decomposition in S.
 
     Returns:
-        - x_t (numpy.ndarray): The updated state estimate.
-        - S_t (numpy.ndarray): The updated covariance matrix.
+      - S (numpy.ndarray): The upper triangular matrix of the decomposition.
     """
-    x_i = x_t_p
-    S_i = S_t_p
-    n = y_t.shape[0]
-    I = np.eye(n)
+    m = S.shape[0]
+    U = np.block([[S.T @ F.T], [sqrtm(Q).T]])
 
-    phi_i = np.zeros((14, 1))
+    for j in range(m):
+        for i in range(j + 1, 2 * m):
+            B = np.eye(2 * m)
+            a = U[j, j]
+            b = U[i, j]
 
-    for i in range(n):
-        H_i = H[i]
-        y_i = y_t[i]
-        R_i = np.var(R[i])
+            if b == 0:
+                c = 1
+                s = 0
+            elif abs(b) > abs(a):
+                r = a/b
+                s = 1/np.sqrt(1 + r**2)
+                c = s * r
+            else:
+                r = b/a
+                c = 1/np.sqrt(1 + r**2)
+                s = c * r
 
-        phi_i = S_i.T @ H_i.T
-        alpha_i = 1 / (phi_i.T @ phi_i + R_i)
-        gamma_i = alpha_i / (1 + math.sqrt(alpha_i * R_i))
+            B[i - 1, i - 1] = c
+            B[i - 1, i] = s
+            B[i, i - 1] = -s
+            B[i, i] = c
 
-        S_i = S_i @ (I - (alpha_i * gamma_i * (phi_i @ phi_i.T)))
-        K_i = S_i @ phi_i
-        x_i = x_i + K_i * (y_i - phi_i.T @ x_i)
+            U = B.T @ U
 
-    return x_i, S_i
-
+    S = U[:m, :m].T
+    return S
 
 def potter_sqrt(x_t_p, S_t_p, y_t, H, R_sqrt):
+    """
+    Performs a square-root implementation of the Potter algorithm for updating 
+    the state and covariance in a Kalman filter.
+
+    Parameters:
+        - x_t_p (numpy.ndarray): The predicted state vector at time t.
+        - S_t_p (numpy.ndarray): The square root of the predicted state 
+          covariance matrix at time t.
+        - y_t (numpy.ndarray): The observation vector at time t.
+        - H (numpy.ndarray): The observation matrix.
+        - R_sqrt (numpy.ndarray): The square root of the observation noise 
+          covariance matrix.
+
+    Id does so by:
+        1.- Computes the innovation vector `y` as the difference between the 
+            observation and the predicted observation.
+        2.- Computes the square root of the innovation covariance matrix `S` 
+            using Cholesky decomposition.
+        3.- Calculates the square-root form of the Kalman gain `K_sqrt`.
+        4.- Updates the state vector `updated_x` using the innovation vector and
+            `K_sqrt`.
+        5.- Updates the square root of the state covariance matrix `updated_S` 
+            using the Kalman gain and the observation matrix.
+
+    Returns:
+        - updated_x (numpy.ndarray): The updated state vector after 
+          incorporating the observation.
+        - updated_S (numpy.ndarray): The updated square root of the state 
+          covariance matrix.
+    """
     y = y_t - H @ x_t_p
 
-    S = cholesky(R_sqrt.T @ R_sqrt + H @ S_t_p.T @ H.T)
-    
-    K_sqrt = solve(S, (S_t_p.T @ H.T).T).T
+    S = cholesky(R_sqrt.T @ R_sqrt + H @ S_t_p @ S_t_p.T @ H.T)
+
+    K_sqrt = solve(S.T, (S_t_p.T @ H.T).T).T
     updated_x = x_t_p + K_sqrt @ solve(S.T, y)
 
     I_KH = np.eye(S_t_p.shape[0]) - K_sqrt @ H
@@ -258,135 +201,89 @@ def potter_sqrt(x_t_p, S_t_p, y_t, H, R_sqrt):
 
     return updated_x, updated_S
 
-
-# def kalmanEnsemble(X, H):
-#     results = []
-
-#     x = np.zeros((14, 1))
-
-#     x = X.iloc[0, :]
-
-#     P = process_covariance_matrix(X)
-#     S = ldl_decomposition(P)
-#     S = S.T
-
-#     F = taylor_series(len(x))
-
-#     # First iteration
-#     w = np.random.normal(size=(len(x)))
-
-#     Q = np.identity(len(x)) * np.std(w)
-
-#     xp = F @ x + w
-
-#     Sp = givens_rotation(F, Q, S)
-
-#     z = np.random.normal(size=(len(H)))
-#     R = np.identity(len(x)) * np.std(z)
-
-#     y_t = H @ x + z
-#     x_prev, S_prev = potter(xp, Sp, y_t, H, R)
-
-#     results.append(x_prev)
-
-#     for i in range(1, len(X)):
-#         w = np.random.normal(size=(len(x)))
-#         Q = np.identity(len(x)) * np.std(w)
-
-#         xp = F @ x_prev + w
-#         Sp = givens_rotation(F, Q, S_prev)
-#         z = np.random.normal(size=(len(H)))
-
-#         R = np.identity(len(H)) * np.std(z)
-
-#         y_t = H @ x + z
-
-#         x_prev, S_prev = potter(xp, Sp, y_t, H, R)
-
-#         results.append(x_prev)
-
-#     return results
-
-
 def kalmanEnsemble(X, H):
-    results = []
-    x = np.zeros((14, 1))
+    """
+    This function performs the Ensemble Kalman filter on a given dataset X using 
+    the observation matrix H.
 
-    x_prev = X.iloc[0, :]
-    P = process_covariance_matrix(X)
-    S_prev = ldl_decomposition(P).T
+    Parameters:
+        - X (numpy.ndarray): The dataset to be filtered.
+        - H (numpy.ndarray): The observation matrix.
+
+    It does so by:
+        1.- Getting the length of X and H.
+        2.- Creating a list to store the filtered results.
+        3.- Initializing the previous state and covariance matrix and applying 
+        the square root filter on the covariance matrix.
+        4.- Looping through the dataset calculating:
+            - The transition matrix.
+            - The process noise covariance matrix.
+            - The measurement noise covariance matrix.
+            - The predicted state and covariance matrix.
+
+            To update the previous state and covariance matrix each step of 
+            the loop, storing the states in the results list.
+
+    Returns:
+        - results (numpy.ndarray): A list of the predicted states.
+    """
+    len_x = X.shape[1]
+    len_h = H.shape[0]
+    results = []
+    x_prev = np.zeros((len_x, 1))
+
+    x_prev = X[0]
+    P = np.cov(X.T)
+
+    S = ldl_decomposition(P).T
 
     for i in range(1, len(X)):
-        F = taylor_series(len(x)) # Calculate the transition matrix
+        F = taylor_series(len_x) # Calculate the transition matrix
 
-        w = np.random.normal(size=(len(x))) # Get the gaussian white noise of the process
-        Q = np.eye(len(x)) * np.std(w) # Calculate the process noise covariance matrix
+        w = np.random.normal(size=(len_x)) # Get the gaussian white noise of the process
+        Q = np.eye(len_x) * np.std(w) # Calculate the process noise covariance matrix
 
         xp = F @ x_prev + w # Predict the next measurement
-        Sp = givens_rotation(F, Q, S_prev) # Predict the next S
-        
-        z = np.random.normal(size=(len(H))) # Get the gaussian white noise of the measurement
-        R = np.eye(len(H)) * np.std(z) # Calculate the measurement noise covariance matrix
+        Sp = givens_rotation(F, Q, S) # Predict the next S
 
-        y_t = H @ X.iloc[i, :] + z
+        z = np.random.normal(size=(len_h)) # Get the gaussian white noise of the measurement
+        R = np.eye(len_h) * np.std(z) # Calculate the measurement noise covariance matrix
 
-        print("predicted x")
-        print(xp)
-        print("predicted S")
-        print(Sp)
-        print("actual y")
-        print(y_t)
-        print("actual H")
-        print(H)
-        print("actual R")
-        print(R)
+        y_t = H @ X[i] + z
 
-        x_prev, S_prev = potter_sqrt(xp, Sp, y_t, H, R)
+        x_prev, S = potter_sqrt(xp, Sp, y_t, H, R)
 
         results.append(x_prev)
-
-    return results
-
+    return np.array(results)
 
 H_all, H_significant, H_non_significant = observation_matrices(m, m_significant, m_non_significant)
+results_all = kalmanEnsemble(X, H_all)
 
-results_all = kalmanEnsemble(dataUser1.iloc[:, :], H_all)
-# results_significant = kalmanEnsemble(dataUser1.iloc[:, :], H_significant)
-# results_non_significant = kalmanEnsemble(dataUser1.iloc[:, :], H_non_significant)
+def plot_signal(predicted_signal, original_signal, sensors, selected):
+    """
+    This function plots the predicted and original signals for a given set of
+    sensors.
 
-# time = range(len(dataUser1))  
-# sensor_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
+    Parameters:
+      - predicted_signal (numpy.ndarray): The predicted signal.
+      - original_signal (numpy.ndarray): The original signal.
+      - sensors (list): The list of sensors.
+      - selected (list): The list of selected sensors.
 
-# meaningful_sensors = ['F4', 'F8', 'AF4']
-# kalman_data = dataUser1.rolling(window=5).mean()
+    It does so by:
+      1.- Creating Pandas DataFrames from the predicted and original signals.
+      2.- Plotting the predicted and original signals for the selected sensors.
+    """
+    prediction = pd.DataFrame(predicted_signal, columns=sensors)
+    original = pd.DataFrame(original_signal, columns=sensors)
 
-# fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
+    plt.figure(figsize=(10, 6))
+    plt.plot(prediction[selected], label='Predicted', color='red')
+    plt.plot(original[selected], label='Original', color='blue')
+    plt.xlabel('Time')
+    plt.ylabel('Sensor Reading')
+    plt.title(f'Sensors {selected}')
+    plt.legend()
+    plt.show()
 
-# for i, label in enumerate(meaningful_sensors):
-#     sensor_data = dataUser1[label]
-#     axs[i].plot(time, sensor_data, color='lightsteelblue')
-#     axs[i].set_title(f'Sensor {label}: Comparacion de Señal Original y Filtrada')
-#     axs[i].set_xlabel('Time')
-#     axs[i].set_ylabel('Sensor Reading')
-#     axs[i].set_facecolor('slategray')
-#     axs[i].grid(True, color='darkslategray')
-
-# plt.tight_layout()
-# plt.show()
-
-# fig, axs = plt.subplots(3, 1, figsize=(10, 15))  
-# for i, label in enumerate(meaningful_sensors):
-#     sensor_data = dataUser1[label] 
-#     kalman_sensor_data = kalman_data[label]   
-#     axs[i].plot(time, sensor_data, label=f'Original {label}', color='lightsteelblue')
-#     axs[i].plot(time, kalman_sensor_data, label=f'Kalman {label}', color='lime')  
-#     axs[i].set_title(f'Sensor {label}')
-#     axs[i].set_xlabel('Time')
-#     axs[i].set_ylabel('Sensor Reading')
-#     axs[i].set_facecolor('slategray')
-#     axs[i].grid(True, color='darkslategray')
-#     axs[i].legend()
-
-# plt.suptitle('Comparacion de Señal Original y Filtrada con Filtro de Kalman', fontsize=16)
-# plt.tight_layout()
-# plt.show()
+plot_signal(results_all, X, sensors, sensors)
