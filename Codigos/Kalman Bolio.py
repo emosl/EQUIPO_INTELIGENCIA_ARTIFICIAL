@@ -8,10 +8,10 @@ from scipy.linalg import ldl, sqrtm
 from numpy.linalg import cholesky, solve
 
 current_path = os.path.dirname(__file__) # Get the directory of the current script
-file_path = '../ProcesadoMatlab/S1_matlab.csv' # Replace with the path to your CSV file
+file_path = 'test_kalman.csv' # Replace with the path to your CSV file
 rel_path = os.path.join(current_path, file_path) # The relative path to the CSV file to plot
 
-X = np.genfromtxt('User1_Pre2.csv', delimiter=',', skip_header=1) # Read the CSV file
+X = np.genfromtxt(rel_path, delimiter=',', skip_header=1) # Read the CSV file
 sensors = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] # The names of the sensors
 
 Fs = 128 # Sampling frequency

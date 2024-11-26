@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 current_path = os.path.dirname(__file__) # Get the directory of the current script
-file_path = '../Procesado/S1_procesado.csv' # Replace with the path to your CSV file
+file_path = 'test_kalman.csv' # Replace with the path to your CSV file
 rel_path = os.path.join(current_path, file_path) # The relative path to the CSV file to plot
 
 data = pd.read_csv(rel_path) # Read the CSV file
