@@ -4,6 +4,7 @@ from scipy.signal import welch
 
 
 def Welch(signal, fs=128, nperseg=128):
+    #returns frequency and power spectral density, bultiplying by 10 logarithmically to get dB
     f, Pxx = welch(signal, fs=fs, nperseg=nperseg)
     return f, 10 * np.log10(Pxx)  
 

@@ -7,6 +7,32 @@ import os
 
 
 def observation_matrices(m_all, m_significant, m_non_significant):
+    """
+    This function returns the observation matrices for a given number of sensors
+    be that all sensors (m_all), significant sensors which are F4, F8 and AF4
+    (m_significant), and non-significant sensors (m_non_significant).
+
+    Parameters:
+        - m_all (int): The total number of sensors.
+        - m_significant (int): The number of significant sensors.
+        - m_non_significant (int): The number of non-significant sensors.
+
+    It does so by:
+        1.- Creating an identity matrix of size m_all x m_all.
+        2.- Creating a zero matrix of size m_significant x m_all.
+        3.- Creating a zero matrix of size m_non_significant x m_all.
+        4.- Filling the last three columns of the H_significant matrix with 1s
+            to take into account the three significant sensors.
+        5.- Filling the diagonal of the H_non_significant matrix with 1s to take
+            into account the non-significant sensors.
+
+    Returns:
+        - H_all (numpy.ndarray): The identity matrix of size m_all x m_all.
+        - H_significant (numpy.ndarray): The significant observation matrix of
+          size m_significant x m_all.
+        - H_non_significant (numpy.ndarray): The non-significant observation
+          matrix of size m_non_significant x m_all.
+    """
     H_all = np.identity(m_all)
     H_significant = np.zeros((m_significant, m_all))
     H_non_significant = np.zeros((m_non_significant, m_all))
@@ -18,6 +44,20 @@ def observation_matrices(m_all, m_significant, m_non_significant):
     return H_all, H_significant, H_non_significant
 
 def concatenateAmplitude(listSignal):
+    """
+    This function concatenates a list of signal arrays into a single array.
+
+    Parameters:
+        - listSignal (list): A list of numpy arrays representing signals.
+
+    It does so by:
+        1.- Checking if the input list is empty and returning a zero array if true.
+        2.- Using numpy's concatenate function to merge all arrays in the list
+            into a single array.
+
+    Returns:
+        - temp (numpy.ndarray): A concatenated array of all signals in the list.
+    """
     if len(listSignal) == 0:
         return np.zeros([len(listSignal)])
     temp = listSignal[0]
@@ -27,6 +67,23 @@ def concatenateAmplitude(listSignal):
 
 
 def readSignal(nameSignal, samplingRate):
+    """
+    This function reads an EEG signal file and splits it into session matrices 
+    based on the given sampling rate.
+
+    Parameters:
+        - nameSignal (str): The file path of the signal data.
+        - samplingRate (int): The number of samples per second.
+
+    It does so by:
+        1.- Reading the signal file, excluding the first column.
+        2.- Splitting the data into smaller matrices based on the sampling rate.
+        3.- Transposing the resulting session matrices.
+
+    Returns:
+        - sessionMatrix (numpy.ndarray): A 3D array where each session is a 2D array
+          of EEG data with dimensions [sessions, sensors, samples].
+    """
     my_data = np.genfromtxt(nameSignal, delimiter=',')[:, 1:] 
     x = np.delete(my_data, (0), axis=0)
     sessionMatrix = []
@@ -43,6 +100,24 @@ def readSignal(nameSignal, samplingRate):
 
 
 def taylor_series(samplingRate, numSensors):
+    """
+    This function returns the taylor series matrix or state transition matrix
+    for a given number of sensors (m) and sampling frequency (Fs)
+
+    Parameters:
+        - m (int): The number of sensors.
+        - Fs (int): The sampling frequency.
+
+    It does so by:
+        1.- Creating an identity matrix of size m x m.
+        2.- Creating a tuple oneLoc that stores the location of the one in the
+            identity matrix.
+        3.- Looping through the matrix to fill only the upper triangle with the
+            taylor series values.
+
+    Returns:
+        - F (numpy.ndarray): The state transition matrix.
+    """
     c = np.zeros([numSensors, numSensors])
 
     for i in range(numSensors):
@@ -55,6 +130,23 @@ def taylor_series(samplingRate, numSensors):
 
 
 def givens_rotation(F, Q, S):
+    """
+    This function performs a Givens rotation on the matrix U to zero out the
+    elements below the diagonal and ultimately output the upper triangular matrix.
+
+    Parameters:
+      - F (numpy.ndarray): The state transition matrix.
+      - Q (numpy.ndarray): The process noise covariance matrix.
+      - S (numpy.ndarray): The measurement noise covariance matrix.
+
+    It does so by:
+      1.- Concatenating the product of F.T and S.T with Q.T.
+      2.- Looping through the matrix to perform the Givens rotation.
+      3.- Storing the upper triangular matrix of the decomposition in S.
+
+    Returns:
+      - S (numpy.ndarray): The upper triangular matrix of the decomposition.
+    """
     m = S.shape[0]
     U = np.concatenate((S.T @ F.T, np.sqrt(Q).T), axis=0)
 
@@ -90,6 +182,28 @@ def givens_rotation(F, Q, S):
 
 
 def Potter(S_p_t, H, R, x_p_t, y_t):
+    """
+    This function implements the Potter algorithm to update the Kalman filter state 
+    and covariance matrices. It calculates the updated state estimate and its 
+    corresponding covariance matrix based on the current measurements.
+
+    Parameters:
+        - S_p_t (numpy.ndarray): The prior square root covariance matrix.
+        - H (numpy.ndarray): The observation matrix.
+        - R (numpy.ndarray): The measurement noise covariance matrix.
+        - x_p_t (numpy.ndarray): The predicted state vector.
+        - y_t (numpy.ndarray): The measurement vector.
+
+    It does so by:
+        1.- Iteratively updating the covariance matrix and state vector for each observation.
+        2.- Calculating the innovation (difference between observation and prediction).
+        3.- Using a weighting factor (gamma_i) for stability.
+        4.- Updating the square root covariance matrix using the innovation.
+
+    Returns:
+        - S_t (numpy.ndarray): The updated square root covariance matrix.
+        - x_t (numpy.ndarray): The updated state vector.
+    """
     x_t = x_p_t
     S_t = S_p_t
     I = np.eye(len(x_t))
@@ -116,12 +230,44 @@ def Potter(S_p_t, H, R, x_p_t, y_t):
 
 
 def noiseDiagCov(noise):
+    """
+    This function creates a diagonal covariance matrix for the given noise.
+
+    Parameters:
+        - noise (numpy.ndarray): A 2D array where each row represents noise samples.
+
+    It does so by:
+        1.- Initializing a square zero matrix of size equal to the number of noise samples.
+        2.- Filling the diagonal with the covariance of each noise sample.
+
+    Returns:
+        - noiseC (numpy.ndarray): A diagonal covariance matrix of the noise.
+    """
     noiseC = np.zeros([len(noise), len(noise)])
     np.fill_diagonal(noiseC, [np.cov(num) for num in noise])
     return noiseC
 
 
 def getNextSquareRoot(P,Q,F, typeM):
+    """
+    This function calculates the next square root matrix for the given covariance
+    matrix using LDL decomposition and Givens rotation.
+
+    Parameters:
+        - P (numpy.ndarray): The process covariance matrix.
+        - Q (numpy.ndarray): The process noise covariance matrix.
+        - F (numpy.ndarray): The state transition matrix.
+        - typeM (str): Indicates whether the initial or subsequent calculations 
+          are being performed ("initial" or "other").
+
+    It does so by:
+        1.- Ensuring P is symmetric for stability.
+        2.- Decomposing P into L and D matrices using LDL decomposition.
+        3.- Applying Givens rotation to compute the square root matrix.
+
+    Returns:
+        - SnewT.T (numpy.ndarray): The square root of the updated covariance matrix.
+    """
     SnewT = 0
     newP = P
     if (typeM == 'initial'):
@@ -148,6 +294,25 @@ def getNextSquareRoot(P,Q,F, typeM):
 
 
 def ensamble_kalman(name_Signal, samplingRate, wC):
+    """
+    This function implements the Ensemble Kalman Filter (EnKF) to process EEG signals
+    and generate results for different sensor configurations: all sensors, original data,
+    significant sensors (Winning Combination, WC), and non-significant sensors (Not Winning Combination, NWC).
+
+    Parameters:
+        - name_Signal (str): Path to the CSV file containing EEG signal data.
+        - samplingRate (int): Number of samples per second (sampling frequency).
+        - wC (numpy.ndarray): Binary array representing significant sensors (1 for significant, 0 otherwise).
+
+    Returns:
+        - resultAll (numpy.ndarray): Filtered results for all sensors.
+        - resultOriginal (numpy.ndarray): Filtered results for the original signal.
+        - resultWC (numpy.ndarray): Filtered results for significant sensors (WC).
+        - resultNWC (numpy.ndarray): Filtered results for non-significant sensors (NWC).
+        - yResult (list): Measurements for all sensors.
+        - yResult_WC (list): Measurements for significant sensors (WC).
+        - yResult_NWC (list): Measurements for non-significant sensors (NWC).
+    """
     numberSensors = len(wC)
     invertWC = np.where(wC == 1, 0, 1)  
 
