@@ -16,10 +16,12 @@ counter_cols = [0] # Counter column of the dataset
 columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] # The columns that contain sensor information
 column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] # The names of the sensors
 
-# Strings for the input and output directories
-file_prefix = 'S'
-input_dir = os.path.join(os.path.dirname(__file__), '../Grabaciones/')
-output_dir = os.path.join(os.path.dirname(__file__), '../Procesado/')
+file_prefix  = 'S'
+start_sess   = 2       # first session to process
+end_sess     = 20      # last session to process
+input_dir    = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Grabaciones/Grabaciones_Rafael'
+output_dir   = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Procesado_1/Procesado_Rafael'
+
 
 
 def cropData(data):
@@ -184,11 +186,9 @@ def process_file(input_path, output_path):
     processed_df.to_csv(output_path, index=False)
     print(f"Processed data saved to {output_path}")
 
-for i in range(1, file_count + 1):
-    input_path = os.path.join(input_dir, f"{file_prefix}{i}.csv")
+for i in range(start_sess, end_sess + 1):
+    input_path  = os.path.join(input_dir,  f"{file_prefix}{i}.csv")
     output_path = os.path.join(output_dir, f"{file_prefix}{i}_procesado.csv")
-    
     print(f"Processing file: {input_path}")
-    print(f"Output file: {output_path}")
-
+    print(f" → Writing to : {output_path}")
     process_file(input_path, output_path)
