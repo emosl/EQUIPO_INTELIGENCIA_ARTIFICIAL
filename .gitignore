@@ -5,6 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
+*.set
+*.fdt
 
 # Distribution / packaging
 .Python
@@ -177,3 +179,5 @@ WILCOXON/
 
 # Ignore .DS_Store files
 .DS_Store
+
+.ppm

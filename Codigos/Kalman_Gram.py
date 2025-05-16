@@ -4,7 +4,7 @@ from scipy import linalg as lin
 import pandas as pd
 import math
 import os
-
+import time
 
 def observation_matrices(m_all, m_significant, m_non_significant):
     """
@@ -180,6 +180,16 @@ def givens_rotation(F, Q, S):
     S = U[:m, :m]
     return S
 
+def gram_schmidt_rotation(F, Q, S):
+    """
+    Uses Gram–Schmidt (via QR decomposition) to compute the upper triangular matrix.
+    
+    It forms U the same way as in the Givens routine and then uses np.linalg.qr.
+    """
+    m = S.shape[0]
+    U = np.concatenate((S.T @ F.T, np.sqrt(Q).T), axis=0)
+    Q_mat, R = np.linalg.qr(U, mode='reduced')
+    return R[:m, :m]
 
 def Potter(S_p_t, H, R, x_p_t, y_t):
     """
@@ -248,199 +258,195 @@ def noiseDiagCov(noise):
     return noiseC
 
 
-def getNextSquareRoot(P,Q,F, typeM):
+def getNextSquareRoot(P, Q, F, typeM, method='gram_schmidt'):
     """
-    This function calculates the next square root matrix for the given covariance
-    matrix using LDL decomposition and Givens rotation.
-
+    Computes the next square root matrix using either Givens rotations or Gram–Schmidt.
+    
     Parameters:
-        - P (numpy.ndarray): The process covariance matrix.
-        - Q (numpy.ndarray): The process noise covariance matrix.
-        - F (numpy.ndarray): The state transition matrix.
-        - typeM (str): Indicates whether the initial or subsequent calculations 
-          are being performed ("initial" or "other").
-
-    It does so by:
-        1.- Ensuring P is symmetric for stability.
-        2.- Decomposing P into L and D matrices using LDL decomposition.
-        3.- Applying Givens rotation to compute the square root matrix.
-
+      - P: Process covariance matrix.
+      - Q: Process noise covariance matrix.
+      - F: State transition matrix.
+      - typeM: 'initial' or 'other'.
+      - method: 'givens' or 'gram_schmidt'.
+      
     Returns:
-        - SnewT.T (numpy.ndarray): The square root of the updated covariance matrix.
+      - The transpose of the computed square root matrix.
     """
     SnewT = 0
     newP = P
-    if (typeM == 'initial'):
-        if(np.allclose(P, P.T) == 'false'):     
-            newP = (P + P.T)/2
-
+    if typeM == 'initial':
+        if not np.allclose(P, P.T):
+            newP = (P + P.T) / 2
         try:
-            lu, d, perm = lin.ldl(newP, lower = 1)
-            L = lu.dot(lin.fractional_matrix_power(d,0.5))
-
-            SnewT = givens_rotation(F, Q, L)
-
+            lu, d, perm = lin.ldl(newP, lower=True)
+            L = lu.dot(lin.fractional_matrix_power(d, 0.5))
+            if method == 'givens':
+                SnewT = givens_rotation(F, Q, L)
+            elif method == 'gram_schmidt':
+                SnewT = gram_schmidt_rotation(F, Q, L)
+            else:
+                raise ValueError("Unknown rotation method")
         except np.linalg.LinAlgError:
             SnewT = 0
             return SnewT
     else:
         try:
-            SnewT = givens_rotation(F, Q, P)
+            if method == 'givens':
+                SnewT = givens_rotation(F, Q, P)
+            elif method == 'gram_schmidt':
+                SnewT = gram_schmidt_rotation(F, Q, P)
+            else:
+                raise ValueError("Unknown rotation method")
         except np.linalg.LinAlgError:
             SnewT = 0
             return SnewT
-
     return SnewT.T
 
-
-def ensamble_kalman(name_Signal, samplingRate, wC):
+def ensamble_kalman(name_Signal, samplingRate, wC, rotation_method='gram_schmidt'):
     """
-    This function implements the Ensemble Kalman Filter (EnKF) to process EEG signals
-    and generate results for different sensor configurations: all sensors, original data,
-    significant sensors (Winning Combination, WC), and non-significant sensors (Not Winning Combination, NWC).
-
+    Implements the Ensemble Kalman Filter on EEG data using the selected rotation method.
+    
     Parameters:
-        - name_Signal (str): Path to the CSV file containing EEG signal data.
-        - samplingRate (int): Number of samples per second (sampling frequency).
-        - wC (numpy.ndarray): Binary array representing significant sensors (1 for significant, 0 otherwise).
-
+      - name_Signal: Path to the EEG CSV file.
+      - samplingRate: Sampling frequency.
+      - wC: Binary array for significant sensors.
+      - rotation_method: 'givens' or 'gram_schmidt'.
+      
     Returns:
-        - resultAll (numpy.ndarray): Filtered results for all sensors.
-        - resultOriginal (numpy.ndarray): Filtered results for the original signal.
-        - resultWC (numpy.ndarray): Filtered results for significant sensors (WC).
-        - resultNWC (numpy.ndarray): Filtered results for non-significant sensors (NWC).
-        - yResult (list): Measurements for all sensors.
-        - yResult_WC (list): Measurements for significant sensors (WC).
-        - yResult_NWC (list): Measurements for non-significant sensors (NWC).
+      - Filtered results and measurement arrays.
     """
     numberSensors = len(wC)
-    invertWC = np.where(wC == 1, 0, 1)  
+    invertWC = np.where(wC == 1, 0, 1)
+   
+    signal = readSignal(name_Signal, samplingRate)
 
-    signal = readSignal(name_Signal, samplingRate)  
     Fs = 128  
-    m = 14  
+    m = numberSensors  
     m_significant = 3 
-    m_non_significant = 11  
+    m_non_significant = numberSensors - 3  
     H_all, H_significant, H_non_significant = observation_matrices(m, m_significant, m_non_significant)
-
+    
     resultAll = np.zeros([len(signal), samplingRate])
     resultOriginal = np.zeros([len(signal), samplingRate])
     resultWC = np.zeros([len(signal), samplingRate])
     resultNWC = np.zeros([len(signal), samplingRate])
-
+    
     resultAll_Temp = np.zeros([1, samplingRate])
     resultOriginal_Temp = np.zeros([1, samplingRate])
     resultWC_Temp = np.zeros([1, samplingRate])
     resultNWC_Temp = np.zeros([1, samplingRate])
-
+    
     H = H_all
     H_WC = H_significant
     H_NWC = H_non_significant
-
+    
     Q = np.eye(numberSensors)
     wNoise = np.zeros((numberSensors, 1))
-
+    
     counterN = 1
     lastN = samplingRate - 1
-
+    
     F = taylor_series(samplingRate, numberSensors)
     F_WC = taylor_series(samplingRate, numberSensors)
     np.fill_diagonal(F_WC[0:], wC)
-
     F_NWC = taylor_series(samplingRate, numberSensors)
     np.fill_diagonal(F_NWC[0:], invertWC)
-
+    
     matrixState = signal[0]
-
     initialP = np.cov(matrixState)
     pk = initialP
     pk_WC = initialP
     pk_NWC = initialP
     ty = 'initial'
-
+    
     x_preAll = np.zeros([numberSensors, 1])
     x_preWC = np.zeros([numberSensors, 1])
     x_preNWC = np.zeros([numberSensors, 1])
-
+    
     yResult = []
     yResult_WC = []
     yResult_NWC = []
-
+    
     for i in range(len(signal)):
         matrixState = signal[i]
-
         for j in range(samplingRate):
             x = x_preAll
             xWC = x_preWC
             xNWC = x_preNWC
-
+            
             zNoiseMatrix = np.random.normal(0, 1, size=(numberSensors, numberSensors))
-            zNoiseMatrixWC = np.random.normal(0, 1, size=(3, 3))
-            zNoiseMatrixNWC = np.random.normal(0, 1, size=(numberSensors - 3, numberSensors - 3))
-
+            zNoiseMatrixWC = np.random.normal(0, 1, size=(m_significant, m_significant))
+            zNoiseMatrixNWC = np.random.normal(0, 1, size=(m_non_significant, m_non_significant))
+            
             R = noiseDiagCov(zNoiseMatrix)
             R_WC = noiseDiagCov(zNoiseMatrixWC)
             R_NWC = noiseDiagCov(zNoiseMatrixNWC)
-
+            
             xpt = np.dot(F, x) + wNoise
             xpt_WC = np.dot(F_WC, xWC) + wNoise
             xpt_NWC = np.dot(F_NWC, xNWC) + wNoise
-
+            
             resultAll_Temp[0, j] = np.sum(xpt) / numberSensors
-            resultWC_Temp[0, j] = np.sum(xpt_WC) / 3
-            resultNWC_Temp[0, j] = np.sum(xpt_NWC) / (numberSensors - 3)
+            resultWC_Temp[0, j] = np.sum(xpt_WC) / m_significant
+            resultNWC_Temp[0, j] = np.sum(xpt_NWC) / m_non_significant
 
-            S_t = getNextSquareRoot(pk, Q, F, ty)
-            S_tWC = getNextSquareRoot(pk_WC, Q, F_WC, ty)
-            S_tNWC = getNextSquareRoot(pk_NWC, Q, F_NWC, ty)
-
+            S_t = getNextSquareRoot(pk, Q, F, ty, rotation_method)
+            S_tWC = getNextSquareRoot(pk_WC, Q, F_WC, ty, rotation_method)
+            S_tNWC = getNextSquareRoot(pk_NWC, Q, F_NWC, ty, rotation_method)
+            
             if j != lastN:
                 nextState = matrixState[:, [counterN]]
                 counterN += 1
-
-            if j == samplingRate - 1 and i != len(signal) - 1:
+            elif j == samplingRate - 1 and i != len(signal) - 1:
                 tempM = signal[i + 1]
                 nextState = tempM[:, [0]]
-
-            if j == samplingRate - 1 and i == len(signal) - 1:
+            else: 
                 tempM = signal[0]
                 nextState = tempM[:, [0]]
-
+            
             resultOriginal_Temp[0, j] = np.sum(nextState) / numberSensors
-
+            
             y = nextState
             yWC = np.dot(H_WC, nextState)
             yNWC = np.dot(H_NWC, nextState)
-
+            
             yResult.append(np.sum(nextState) / numberSensors)
-            yResult_WC.append(np.sum(yWC) / 3)
-            yResult_NWC.append(np.sum(yNWC) / (numberSensors - 3))
-
+            yResult_WC.append(np.sum(yWC) / m_significant)
+            yResult_NWC.append(np.sum(yNWC) / m_non_significant)
+            
             pk, x_preAll = Potter(S_t, H, R, xpt, y)
             pk_WC, x_preWC = Potter(S_tWC, H_WC, R_WC, xpt_WC, yWC)
             pk_NWC, x_preNWC = Potter(S_tNWC, H_NWC, R_NWC, xpt_NWC, yNWC)
             ty = 'other'
-
+    
         resultAll[i] = resultAll_Temp
         resultOriginal[i] = resultOriginal_Temp
         resultWC[i] = resultWC_Temp
         resultNWC[i] = resultNWC_Temp
-
+        
         resultAll_Temp = np.zeros([1, samplingRate])
         resultOriginal_Temp = np.zeros([1, samplingRate])
         resultWC_Temp = np.zeros([1, samplingRate])
         resultNWC_Temp = np.zeros([1, samplingRate])
         counterN = 1
-        print(i)
-
+        # print("Processed session:", i)
+    
     return resultAll, resultOriginal, resultWC, resultNWC, yResult, yResult_WC, yResult_NWC
 
+
 file_path = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/KALMAN/S1.csv'
-output_folder = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN'
 samplingRate = 128
 aW = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1])
-allResults, originalResults, wcResults, nwcResults, yResult, yResult_WC, yResult_NWC = ensamble_kalman(file_path, samplingRate, aW)
+output_folder = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN'
+name = 'STest'
 
+# ----- Execution using Givens rotation -----
+start_time = time.time()
+results_givens = ensamble_kalman(file_path, samplingRate, aW, rotation_method='givens')
+end_time = time.time()
+print("Execution time with Givens rotation:", end_time - start_time, "seconds")
+
+allResults, originalResults, wcResults, nwcResults, yResult, yResult_WC, yResult_NWC = results_givens
 
 amplitudeAll = concatenateAmplitude(allResults)
 amplitudeOriginal = concatenateAmplitude(originalResults)
@@ -451,16 +457,37 @@ amplitudeYAll = np.array(yResult)
 amplitudeYWC = np.array(yResult_WC)
 amplitudeYNWC = np.array(yResult_NWC)
 
-os.makedirs(output_folder, exist_ok=True)
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_amplitude_All.csv'), amplitudeAll, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_amplitude_Original.csv'), amplitudeOriginal, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_amplitude_WC.csv'), amplitudeWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_amplitude_NWC.csv'), amplitudeNWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_y_All.csv'), amplitudeYAll, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_y_WC.csv'), amplitudeYWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Givens_{name}_y_NWC.csv'), amplitudeYNWC, delimiter=",")
 
-name = 'S17' 
+# ----- Execution using Gram–Schmidt rotation -----
+start_time = time.time()
+results_gs = ensamble_kalman(file_path, samplingRate, aW, rotation_method='gram_schmidt')
+end_time = time.time()
+print("Execution time with Gram–Schmidt rotation:", end_time - start_time, "seconds")
 
-np.savetxt(os.path.join(output_folder, f'{name}_amplitude_All.csv'), amplitudeAll, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_amplitude_Original.csv'), amplitudeOriginal, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_amplitude_WC.csv'), amplitudeWC, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_amplitude_NWC.csv'), amplitudeNWC, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_y_All.csv'), amplitudeYAll, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_y_WC.csv'), amplitudeYWC, delimiter=",")
-np.savetxt(os.path.join(output_folder, f'{name}_y_NWC.csv'), amplitudeYNWC, delimiter=",")
+allResults, originalResults, wcResults, nwcResults, yResult, yResult_WC, yResult_NWC = results_gs
 
-print(f"Processed and saved results for {name}")
+amplitudeAll = concatenateAmplitude(allResults)
+amplitudeOriginal = concatenateAmplitude(originalResults)
+amplitudeWC = concatenateAmplitude(wcResults)
+amplitudeNWC = concatenateAmplitude(nwcResults)
+
+amplitudeYAll = np.array(yResult)
+amplitudeYWC = np.array(yResult_WC)
+amplitudeYNWC = np.array(yResult_NWC)
+
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_amplitude_All.csv'), amplitudeAll, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_amplitude_Original.csv'), amplitudeOriginal, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_amplitude_WC.csv'), amplitudeWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_amplitude_NWC.csv'), amplitudeNWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_y_All.csv'), amplitudeYAll, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_y_WC.csv'), amplitudeYWC, delimiter=",")
+np.savetxt(os.path.join(output_folder, f'Graham_{name}_y_NWC.csv'), amplitudeYNWC, delimiter=",")
+
+print(f"Processed and saved Givens and Gram–Schmidt results for {name}")
