@@ -29,7 +29,7 @@ def readSignal(path, samplingRate):
     Reads CSV, drops first column & header row, splits into sessions.
     Returns array of shape [n_sessions, n_sensors, n_samples].
     """
-    data = np.genfromtxt(path, delimiter=',')[:, 1:]
+    data = np.genfromtxt(path, delimiter=',')
     data = np.delete(data, 0, axis=0)
     sessions = []
     for i in range(0, len(data)//samplingRate * samplingRate, samplingRate):

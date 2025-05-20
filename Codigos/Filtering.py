@@ -17,10 +17,10 @@ columns_to_use = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] # The columns
 column_names = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4'] # The names of the sensors
 
 file_prefix  = 'S'
-start_sess   = 2       # first session to process
-end_sess     = 20      # last session to process
-input_dir    = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Grabaciones/Grabaciones_Rafael'
-output_dir   = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Procesado_1/Procesado_Rafael'
+start_sess   = 1       # first session to process
+end_sess     = 7      # last session to process
+input_dir    = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Grabaciones/Grabaciones_Ruben'
+output_dir   = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/Procesado_1/Procesado_Ruben'
 
 
 

@@ -1,4 +1,4 @@
-# Kalman_Carlson_Givens.py
+
 import numpy as np
 import math
 import time
@@ -25,7 +25,7 @@ def readSignal(path, samplingRate):
     Reads CSV, drops first column & header row, splits into sessions.
     Returns array of shape [n_sessions, n_sensors, n_samples].
     """
-    data = np.genfromtxt(path, delimiter=',')[:, 1:]
+    data = np.genfromtxt(path, delimiter=',')
     data = np.delete(data, 0, axis=0)
     sessions = []
     total = (len(data) // samplingRate) * samplingRate
@@ -35,7 +35,7 @@ def readSignal(path, samplingRate):
 
 
 def taylor_series(Fs, m):
-    """Build the m×m Taylor‐series state‐transition matrix."""
+    """Build the m×m Taylor-series state-transition matrix."""
     C = np.zeros((m, m))
     for i in range(m):
         v = 1.0 / (Fs**i) / math.factorial(i)
@@ -45,7 +45,7 @@ def taylor_series(Fs, m):
 
 
 def givens_rotation(F, Q, S):
-    """Perform Givens rotations for square‐root time update."""
+    """Perform Givens rotations for square-root time update."""
     m = S.shape[0]
     U = np.vstack((S.T @ F.T, np.sqrt(Q).T))
     for j in range(U.shape[1]):
@@ -79,7 +79,7 @@ def noiseDiagCov(noise):
 
 def getNextSquareRoot(P, Q, F, kind, method='givens'):
     """
-    Compute next square-root of covariance.
+    Compute next square-root of covariance using Givens rotations.
     kind: 'initial' or 'other'
     method: 'givens'
     """
@@ -92,40 +92,70 @@ def getNextSquareRoot(P, Q, F, kind, method='givens'):
         return givens_rotation(F, Q, P).T
 
 
-def carlson_sqrt_update(S_p, H, R, x_p, y):
+def carlsonFilter(prevS, H, R, x_prev, y):
     """
-    True Carlson square-root measurement update.
+    Teacher's sequential Carlson UD-style measurement update.
+    prevS: prior sqrt covariance (n×n, lower-triangular)
+    H: measurement matrix (m×n)
+    R: measurement noise samples (m×m)
+    x_prev: prior state estimate (n×1)
+    y: measurement vector (m×1)
+    Returns (S_new, x_new).
     """
-    # 1. Stack for QR
-    R_chol = np.linalg.cholesky(R)
-    top = np.hstack([R_chol, np.zeros((R.shape[0], S_p.shape[1]))])
-    bottom = np.hstack([H @ S_p, S_p])
-    A = np.vstack([top, bottom])
-    # 2. QR on A.T
-    _, R_mat = np.linalg.qr(A.T)
-    S_t = R_mat.T[S_p.shape[0]:, S_p.shape[1]:]
-    # 3. Kalman gain and update
-    P_p = S_p @ S_p.T
-    PHt = P_p @ H.T
-    S_ht = H @ PHt + R
-    K = PHt @ np.linalg.inv(S_ht)
-    x_t = x_p + K @ (y - H @ x_p)
-    return S_t, x_t
+    n = x_prev.shape[0]
+    m = y.shape[0]
+    # Ensure S_prev is lower-triangular
+    S_prev = prevS if np.allclose(prevS, np.tril(prevS)) else prevS.T
+    x_new = x_prev.copy()
+
+    # Sequential per-scalar update
+    for j in range(m):
+        # extract scalar measurement
+        H_j = H[j:j+1, :]
+        phi = (S_prev @ H_j.T).reshape(n, 1)
+        d_prev = np.var(R[j])
+        e_prev = np.zeros((n, 1))
+        S_temp = np.zeros((n, n))
+
+        # UD-recursion across state dims
+        for i in range(n):
+            d_next = d_prev + float(phi[i]**2)
+            b = math.sqrt(d_prev / d_next)
+            c = float(phi[i] / math.sqrt(d_prev * d_next))
+            e_next = e_prev + (S_prev[:, i].reshape(n,1) * phi[i])
+            col = (S_prev[:, i].reshape(n,1) * b) - (e_prev * c)
+            S_temp[:, i] = col.flatten()
+            d_prev = d_next
+            e_prev = e_next
+
+        # state update scalar
+        residual = (y[j,0] - (H_j @ x_new)[0,0])
+        x_new = x_new + e_prev * (residual / d_prev)
+        S_prev = S_temp
+
+    return S_prev, x_new
 
 # --- Main filter routine ---
 
 def run(nameSignal, Fs, wC):
     """
-    Ensemble Kalman filter using Carlson update + Givens square-root.
+    Ensemble Kalman filter using Carlson sequential measurement + Givens time update.
+    nameSignal: EEG CSV path
+    Fs: sampling rate
+    wC: binary mask for significant sensors
+    Returns: [n_sessions, Fs] filtered means (posterior).
     """
     m = len(wC)
     sig = readSignal(nameSignal, Fs)
-    H_all, _, _ = observation_matrices(m, 3, m - 3)
+    H_all, _, _ = observation_matrices(m, 3, m-3)
 
-    x = np.zeros((m, 1))
+    x = np.zeros((m,1))
     P = np.cov(sig[0])
     kind = 'initial'
     results = []
+
+    # Pre-compute fixed noise covariance if stationary
+    # noise = noiseDiagCov(np.random.randn(m, m))
 
     for session in sig:
         out = []
@@ -134,17 +164,21 @@ def run(nameSignal, Fs, wC):
             F = taylor_series(Fs, m)
             x_pred = F @ x
             S = getNextSquareRoot(P, np.eye(m), F, kind)
-            # measurement update
+
+            # measurement update (teacher's Carlson)
             noise = noiseDiagCov(np.random.randn(m, m))
-            S, x = carlson_sqrt_update(S, H_all, noise, x_pred, session[:, j:j+1])
+            S, x = carlsonFilter(S, H_all, noise, x_pred, session[:, j:j+1])
             P = S @ S.T
-            out.append(x_pred.mean())
+
+            # store posterior mean
+            out.append(float(x.mean()))
             kind = 'other'
         results.append(out)
+
     return np.array(results)
 
 if __name__ == '__main__':
-    path = '/Users/emiliasalazar/.../S1.csv'
+    path = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/KALMAN/S1.csv'
     Fs = 128
     w = np.array([0,0,0,0,0,0,0,0,0,0,0,1,1,1])
     start = time.time()

@@ -84,7 +84,7 @@ def readSignal(nameSignal, samplingRate):
         - sessionMatrix (numpy.ndarray): A 3D array where each session is a 2D array
           of EEG data with dimensions [sessions, sensors, samples].
     """
-    my_data = np.genfromtxt(nameSignal, delimiter=',')[:, 1:] 
+    my_data = np.genfromtxt(nameSignal, delimiter=',')
     x = np.delete(my_data, (0), axis=0)
     sessionMatrix = []
 
@@ -435,7 +435,7 @@ def ensamble_kalman(name_Signal, samplingRate, wC):
 
     return resultAll, resultOriginal, resultWC, resultNWC, yResult, yResult_WC, yResult_NWC
 
-file_path = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/KALMAN/S1.csv'
+file_path = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/KALMAN/KALMAN_Karen2/S1.csv'
 output_folder = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN'
 samplingRate = 128
 aW = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1])

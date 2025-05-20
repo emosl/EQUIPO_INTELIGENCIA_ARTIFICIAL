@@ -25,7 +25,7 @@ def concatenateAmplitude(listSignal):
 # Read EEG CSV into [sessions, sensors, samples]
 
 def readSignal(path, samplingRate):
-    data = np.genfromtxt(path, delimiter=',')[:, 1:]
+    data = np.genfromtxt(path, delimiter=',')
     data = np.delete(data, 0, axis=0)
     sessions = []
     for i in range(0, len(data)//samplingRate * samplingRate, samplingRate):
