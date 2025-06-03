@@ -209,7 +209,7 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {metrics.map((metric) => {
           const Icon = metric.icon
           return (
@@ -239,7 +239,7 @@ export default function ResultsPage() {
             </div>
           )
         })}
-      </div>
+      </div>*/}
 
       {/* Results Graph and Algorithm Info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -302,7 +302,7 @@ export default function ResultsPage() {
             </div>
 
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-1">Secondary Model</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
               <div className="flex items-center">
                 <Activity className="h-5 w-5 text-blue-600 mr-2" />
                 <p className="text-gray-900">Random Forest Predictor</p>
