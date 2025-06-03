@@ -1,9 +1,0 @@
-Potter_GramSchmidt: 201.30725622177124
-Carlson_GramSchmidt: 116.26800107955933
-Bierman_GramSchmidt: 281.0005507469177
-Potter_Givens: 575.6834199428558
-Carlson_Givens: 502.1390469074249
-Bierman_Givens: 662.8326890468597
-Potter_Householder: 210.7499189376831
-Carlson_Householder: 116.37877988815308
-Bierman_Householder: 283.08936500549316

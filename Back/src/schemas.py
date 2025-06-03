@@ -17,7 +17,7 @@ class User(UserBase):
     is_active: bool
 
     class Config:
-        from_attributes  = True
+        from_attributes = True
     
 
 
@@ -37,7 +37,7 @@ class Patient(PatientBase):
     user_id: int
 
     class Config:
-        from_attributes  = True
+        from_attributes = True
 
 # Session Classes
 class SessionBase(BaseModel):
@@ -52,7 +52,7 @@ class Session(SessionBase):
     session_timestamp: datetime
 
     class Config:
-        from_attributes  = True
+        from_attributes = True
 
 # EEGData Classes
 class EegDataBase(BaseModel):
@@ -78,4 +78,12 @@ class EegData(EegDataBase):
     session_id: int
 
     class Config:
-        from_attributes  = True
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: str | None = None
