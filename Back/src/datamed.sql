@@ -2,8 +2,8 @@ DROP DATABASE IF EXISTS datamed;
 CREATE DATABASE datamed;
 USE datamed;
 
-CREATE TABLE users(
-	user_id INT PRIMARY KEY NOT NULL,
+CREATE TABLE doctors(
+	id INT PRIMARY KEY NOT NULL,
     name VARCHAR(100) NOT NULL,
     father_surname VARCHAR(100) NOT NULL,
     mother_surname VARCHAR(100) NOT NULL,
@@ -13,26 +13,25 @@ CREATE TABLE users(
 );
 
 CREATE TABLE patients(
-	patient_id INT NOT NULL,
+	id INT PRIMARY KEY NOT NULL,
+    user_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     father_surname VARCHAR(100) NOT NULL,
     mother_surname VARCHAR(100) NOT NULL,
     birth_date DATE NOT NULL, -- or age?
-    sex VARCHAR(1) NOT NULL,
-    PRIMARY KEY (patient_id)
-);
-
-CREATE TABLE sessions(
-    session_id INT PRIMARY KEY NOT NULL,
-    patient_id INT NOT NULL,
-    user_id INT NOT NULL,
-    session_timestamp TIMESTAMP NOT NULL,
-    FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+    sex VARCHAR(1) NOT NULL
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE sessionss(
+    id INT PRIMARY KEY NOT NULL,
+    patient_id INT NOT NULL,
+    session_timestamp TIMESTAMP NOT NULL,
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+);
+
 CREATE TABLE eeg_data(
-    session_id INT PRIMARY KEY NOT NULL,
+    session_id INT NOT NULL,
     af3 FLOAT NOT NULL,
     f7 FLOAT NOT NULL,
     f3 FLOAT NOT NULL,
@@ -47,5 +46,12 @@ CREATE TABLE eeg_data(
     f4 FLOAT NOT NULL,
     f8 FLOAT NOT NULL,
     af4 FLOAT NOT NULL,
-    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+    FOREIGN KEY (session_id) REFERENCES sessionss(session_id)
 );
+
+CREATE TABLE kalman_data(
+    patient_id INT NOT NULL,
+    amplitude FLOAT,
+    welch FLOAT,
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id)
+)
