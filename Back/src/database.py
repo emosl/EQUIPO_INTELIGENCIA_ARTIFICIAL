@@ -6,6 +6,8 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./database.db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True, connect_args={"check_same_thread":False})
 
+mysql_engine = create_engine(DATABASE_URI)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
