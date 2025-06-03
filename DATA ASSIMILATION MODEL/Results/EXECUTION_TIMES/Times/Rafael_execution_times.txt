@@ -1,0 +1,9 @@
+Rafael_S4_Potter_GramSchmidt: 4307.671s
+Rafael_S4_Carlson_GramSchmidt: 27749.312s
+Rafael_S4_Bierman_GramSchmidt: 3908.075s
+Rafael_S4_Potter_Givens: 44189.173s
+Rafael_S4_Carlson_Givens: 65247.278s
+Rafael_S4_Bierman_Givens: 21323.010s
+Rafael_S4_Potter_Householder: 1159.345s
+Rafael_S4_Carlson_Householder: 4627.020s
+Rafael_S4_Bierman_Householder: 743.596s

@@ -1,0 +1,6 @@
+Eveline_S3_Potter_GramSchmidt: 3815.990s
+Eveline_S3_Carlson_GramSchmidt: 27095.337s
+Eveline_S3_Potter_Givens: 42912.113s
+Eveline_S3_Carlson_Givens: 63952.235s
+Eveline_S3_Potter_Householder: 4332.279s
+Eveline_S3_Carlson_Householder: 19569.579s

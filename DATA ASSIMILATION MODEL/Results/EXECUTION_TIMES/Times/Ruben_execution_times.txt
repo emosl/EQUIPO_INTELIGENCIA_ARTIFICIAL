@@ -1,0 +1,6 @@
+Ruben_S5_Potter_GramSchmidt: 4619.960s
+Ruben_S5_Carlson_GramSchmidt: 28849.057s
+Ruben_S5_Potter_Givens: 46516.757s
+Ruben_S5_Carlson_Givens: 69396.717s
+Ruben_S5_Potter_Householder: 2109.495s
+Ruben_S5_Carlson_Householder: 11730.960s

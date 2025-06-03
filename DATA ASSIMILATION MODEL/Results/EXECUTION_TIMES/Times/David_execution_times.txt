@@ -1,0 +1,7 @@
+David_S4_Potter_GramSchmidt: 4505.200s
+David_S4_Carlson_GramSchmidt: 27812.244s
+David_S4_Potter_Givens: 44321.412s
+David_S4_Carlson_Givens: 67014.210s
+David_S4_Bierman_Givens: 23284.184s
+David_S4_Potter_Householder: 1383.998s
+David_S4_Carlson_Householder: 3372.830s

@@ -1,0 +1,9 @@
+Omar_S4_Potter_GramSchmidt: 4067.893s
+Omar_S4_Carlson_GramSchmidt: 26205.694s
+Omar_S4_Bierman_GramSchmidt: 3902.666s
+Omar_S4_Potter_Givens: 41779.415s
+Omar_S4_Carlson_Givens: 62535.103s
+Omar_S4_Bierman_Givens: 27193.599s
+Omar_S4_Potter_Householder: 1539.558s
+Omar_S4_Carlson_Householder: 4322.311s
+Omar_S4_Bierman_Householder: 1345.089s
