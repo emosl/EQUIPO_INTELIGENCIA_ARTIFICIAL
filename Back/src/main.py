@@ -39,9 +39,6 @@ def create_patient_for_user(
             status_code=404,
             detail=f"User with id {user_id} not found"
         )
-    
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to add patients for another user")
 
     new_patient = services.create_patient(db, user_id, patient_in)
     return new_patient

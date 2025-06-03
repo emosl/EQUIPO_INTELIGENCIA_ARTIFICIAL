@@ -3,17 +3,17 @@ import models
 import schemas
 
 from database import *
-from typing import List
+from loadenv import Settings
 from sqlalchemy.orm import *
 from jose import jwt, JWTError
 from dotenv import load_dotenv
+from typing import List, Optional
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
-load_dotenv()
+settings = Settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -78,9 +78,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.now() + expires_delta
     else:
-        expire = datetime.now() + (expires_delta or timedelta(minutes=os.getenv(("ACCESS_TOKEN_EXPIRE_MINUTES"))))
+        expire = datetime.now() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 def authenticate_user(db: Session, email: str, password: str) -> models.User | None:
@@ -109,7 +109,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
