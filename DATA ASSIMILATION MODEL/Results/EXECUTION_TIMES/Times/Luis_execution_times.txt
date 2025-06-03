@@ -1,6 +1,0 @@
-Luis_S4_Potter_GramSchmidt: 4373.802s
-Luis_S4_Carlson_GramSchmidt: 27949.044s
-Luis_S4_Potter_Givens: 43705.719s
-Luis_S4_Carlson_Givens: 66485.127s
-Luis_S4_Potter_Householder: 2596.041s
-Luis_S4_Carlson_Householder: 16813.596s

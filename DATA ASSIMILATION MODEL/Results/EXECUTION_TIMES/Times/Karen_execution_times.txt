@@ -1,9 +1,0 @@
-Karen_S3_Potter_GramSchmidt: 4250.412s
-Karen_S3_Carlson_GramSchmidt: 27487.370s
-Karen_S3_Bierman_GramSchmidt: 4071.831s
-Karen_S3_Potter_Givens: 43056.986s
-Karen_S3_Carlson_Givens: 64884.687s
-Karen_S3_Bierman_Givens: 22865.357s
-Karen_S3_Potter_Householder: 1159.255s
-Karen_S3_Carlson_Householder: 4640.882s
-Karen_S3_Bierman_Householder: 796.237s
