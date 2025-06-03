@@ -12,9 +12,9 @@ export function middleware(request: NextRequest) {
   }
 
   // Redirect root to login
-  if (request.nextUrl.pathname === "/") {
+  {/*if (request.nextUrl.pathname === "/") {
     return NextResponse.redirect(new URL("/login", request.url))
-  }
+  }*/}
 
   return NextResponse.next()
 }

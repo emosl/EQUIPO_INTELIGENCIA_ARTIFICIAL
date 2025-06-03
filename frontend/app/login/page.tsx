@@ -24,11 +24,12 @@ export default function LoginPage() {
     }
 
     const success = await login(email, password)
-    if (success) {
+    router.push("/results")
+    {/*if (success) {
       router.push("/")
     } else {
       setError("Invalid email or password")
-    }
+    }*/}
   }
 
   return (
