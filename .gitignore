@@ -176,6 +176,7 @@ WELCH/
 PROCESSED_KALMAN/
 SEMESTRE_PASADO/
 WILCOXON/
+Results/
 .csv
 
 # Ignore .DS_Store files
