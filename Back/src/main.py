@@ -19,15 +19,12 @@ def create_user_endpoint(
     user_in: schemas.UserCreate,
     db: Session = Depends(services.get_db),
 ):
-    # 1) Check for existing email
     existing = services.get_user_by_email(db, user_in.email)
     if existing:
         raise HTTPException(
             status_code=400,
             detail="The entered email is already in use"
         )
-
-    # 2) Call the service-layer function (not itself)
     created_user = services.create_user(db=db, user=user_in)
     return created_user
 
