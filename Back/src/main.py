@@ -3,6 +3,7 @@ import services
 import models
 
 from typing import List
+from loadenv import Settings
 from datetime import timedelta
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -75,7 +76,7 @@ def login_for_access_token(
         )
 
     # Create a token that expires in ACCESS_TOKEN_EXPIRE_MINUTES
-    access_token_expires = timedelta(minutes=services.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=services.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = services.create_access_token(
         data={"sub": user.email},  # we store email in the “sub” claim
         expires_delta=access_token_expires
