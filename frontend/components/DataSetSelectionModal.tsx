@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, ChangeEvent } from "react";
 import { useAuth } from "@/components/AuthContext";
-import { X, Database, Check, Upload, Loader2 } from "lucide-react";
+import { usePatient } from "@/components/PatientContext";
+import { X, Database, Check, Upload, Loader2, Plus } from "lucide-react";
 
 export interface DataSet {
   id: string;
@@ -25,21 +26,28 @@ export default function DataSetSelectionModal({
   selectedDataSet,
   onSelectDataSet,
 }: DataSetSelectionModalProps) {
-  // ------------------------------------------------------------------------
-  // Hooks must always run in the same order
-  // ------------------------------------------------------------------------
-  const { user } = useAuth(); // guard by auth if needed
+  const { user } = useAuth();
+  const { selectedPatient } = usePatient();
   const [dataSets, setDataSets] = useState<DataSet[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState<
     "idle" | "uploading" | "done" | "error"
   >("idle");
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newSessionName, setNewSessionName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ------------------------------------------------------------------------
-  // Fetch sessions (datasets) when modal opens
-  // ------------------------------------------------------------------------
   useEffect(() => {
+    const createNewOption: DataSet = {
+      id: "create-new",
+      name: "Create New Session",
+      description: selectedPatient
+        ? `Create new session for ${selectedPatient.name} ${selectedPatient.father_surname}`
+        : "Select a patient first to create a new session",
+      size: "New",
+      lastUpdated: "Now",
+    };
+
     async function fetchSessions() {
       try {
         const token = localStorage.getItem("access_token");
@@ -48,49 +56,97 @@ export default function DataSetSelectionModal({
         });
         if (res.ok) {
           const json: DataSet[] = await res.json();
-          setDataSets(json);
+          setDataSets([createNewOption, ...json]);
         } else {
-          console.error("Failed to load sessions", await res.text());
+          setDataSets([createNewOption]);
         }
       } catch (err) {
         console.error("Network error loading sessions", err);
+        setDataSets([createNewOption]);
       }
     }
+
     if (isOpen) {
       fetchSessions();
-      // reset local state each time the modal opens
       setFile(null);
       setUploadState("idle");
+      setIsCreatingNew(false);
+      setNewSessionName("");
     }
-  }, [isOpen]);
+  }, [isOpen, selectedPatient]);
 
-  // bail out after all hooks so hook order stays stable
   if (!isOpen) return null;
 
-  // ------------------------------------------------------------------------
-  // Handlers
-  // ------------------------------------------------------------------------
   function handleFilePick(e: ChangeEvent<HTMLInputElement>) {
     const chosen = e.target.files?.[0];
     if (chosen) setFile(chosen);
+  }
+
+  function handleDataSetSelect(ds: DataSet) {
+    onSelectDataSet(ds);
+    setIsCreatingNew(ds.id === "create-new");
   }
 
   async function handleConfirm() {
     if (!selectedDataSet || !file) return;
     setUploadState("uploading");
 
-    const fd = new FormData();
-    fd.append("session_id", selectedDataSet.id);
-    fd.append("file", file);
-
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:8000/upload/csv", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      if (!res.ok) throw new Error(await res.text());
+
+      if (selectedDataSet.id === "create-new") {
+        if (!selectedPatient) {
+          throw new Error("Please select a patient first");
+        }
+
+        // Create new session for the selected patient
+        const createRes = await fetch(
+          "http://localhost:8000/create-session-for-patient",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              patient_id: selectedPatient.id,
+              session_name:
+                newSessionName ||
+                `Session ${new Date().toISOString().split("T")[0]}`,
+            }),
+          }
+        );
+
+        if (!createRes.ok) throw new Error(await createRes.text());
+        const { session_id } = await createRes.json();
+
+        // Upload CSV to the new session
+        const fd = new FormData();
+        fd.append("session_id", session_id);
+        fd.append("file", file);
+
+        const uploadRes = await fetch("http://localhost:8000/upload/csv", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+
+        if (!uploadRes.ok) throw new Error(await uploadRes.text());
+      } else {
+        // Upload to existing session
+        const fd = new FormData();
+        fd.append("session_id", selectedDataSet.id);
+        fd.append("file", file);
+
+        const res = await fetch("http://localhost:8000/upload/csv", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+      }
+
       setUploadState("done");
       setTimeout(onClose, 1000);
     } catch (err) {
@@ -100,19 +156,20 @@ export default function DataSetSelectionModal({
   }
 
   const confirmDisabled =
-    !selectedDataSet || !file || uploadState === "uploading";
+    !selectedDataSet ||
+    !file ||
+    uploadState === "uploading" ||
+    (isCreatingNew && (!newSessionName.trim() || !selectedPatient));
 
-  // ------------------------------------------------------------------------
-  // JSX
-  // ------------------------------------------------------------------------
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[80vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold flex items-center text-gray-900">
             <Database className="h-5 w-5 mr-2" />
-            Select Data Set &amp; Upload CSV
+            {isCreatingNew ? "Create New Session" : "Select Data Set"} &amp;
+            Upload CSV
           </h2>
           <button
             onClick={onClose}
@@ -130,16 +187,19 @@ export default function DataSetSelectionModal({
             {dataSets.map((ds) => (
               <div
                 key={ds.id}
-                onClick={() => onSelectDataSet(ds)}
+                onClick={() => handleDataSetSelect(ds)}
                 className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                   selectedDataSet?.id === ds.id
                     ? "border-primary-500 bg-primary-50"
                     : "border-gray-200 hover:border-gray-300"
-                }`}
+                } ${ds.id === "create-new" ? "border-dashed" : ""}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center">
+                      {ds.id === "create-new" && (
+                        <Plus className="h-5 w-5 mr-2 text-primary-600" />
+                      )}
                       <h3 className="font-medium text-gray-900">{ds.name}</h3>
                       {selectedDataSet?.id === ds.id && (
                         <Check className="h-5 w-5 text-primary-600 ml-2" />
@@ -148,16 +208,52 @@ export default function DataSetSelectionModal({
                     <p className="text-sm text-gray-600 mt-1">
                       {ds.description}
                     </p>
-                    <div className="flex items-center mt-2 text-xs text-gray-500">
-                      <span>Size: {ds.size}</span>
-                      <span className="mx-2">•</span>
-                      <span>Updated: {ds.lastUpdated}</span>
-                    </div>
+                    {ds.id !== "create-new" && (
+                      <div className="flex items-center mt-2 text-xs text-gray-500">
+                        <span>Size: {ds.size}</span>
+                        <span className="mx-2">•</span>
+                        <span>Updated: {ds.lastUpdated}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* New session form */}
+          {isCreatingNew && (
+            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+              <h4 className="font-medium text-gray-900">New Session Details</h4>
+              {selectedPatient ? (
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-sm text-gray-600">Creating session for:</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedPatient.name} {selectedPatient.father_surname}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-red-50 p-3 rounded border border-red-200">
+                  <p className="text-sm text-red-600">
+                    Please select a patient first before creating a new session.
+                  </p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Session Name
+                </label>
+                <input
+                  type="text"
+                  value={newSessionName}
+                  onChange={(e) => setNewSessionName(e.target.value)}
+                  placeholder="e.g., EEG Session - 2024-01-15"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                  disabled={!selectedPatient}
+                />
+              </div>
+            </div>
+          )}
 
           {/* File picker */}
           <div>
@@ -200,11 +296,12 @@ export default function DataSetSelectionModal({
             disabled={confirmDisabled}
             className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {uploadState === "idle" && "Confirm Upload"}
+            {uploadState === "idle" &&
+              (isCreatingNew ? "Create & Upload" : "Confirm Upload")}
             {uploadState === "uploading" && (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
-                Uploading…
+                {isCreatingNew ? "Creating..." : "Uploading..."}
               </>
             )}
             {uploadState === "done" && (
