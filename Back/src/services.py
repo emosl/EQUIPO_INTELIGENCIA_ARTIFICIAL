@@ -13,6 +13,10 @@ from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 
+from schemas import EegData, KalResults
+from models import *
+from sqlalchemy import insert
+
 settings = Settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -121,3 +125,16 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def save_eeg_data(db: Session, eeg: EegData):
+    db.execute(
+        insert(db.metadata.tables['eeg_data']).values(**eeg.dict())
+    )
+
+
+def save_kalman_data(db: Session, kalman: KalResults):
+    db.execute(
+        insert(db.metadata.tables['kalman_results']).values(**kalman.dict())
+    )
+    db.commit()

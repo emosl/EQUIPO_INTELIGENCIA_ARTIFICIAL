@@ -80,10 +80,19 @@ class EegData(EegDataBase):
     class Config:
         from_attributes = True
 
-
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
     email: str | None = None
+    
+
+class KalResults(BaseModel):
+    patient_id: int
+    amplitude: float
+    welch: float
+
+class SaveRequest(BaseModel):
+    eeg: EegData
+    kalman: KalResults

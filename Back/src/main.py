@@ -82,3 +82,25 @@ def login_for_access_token(
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/upload/csv")
+async def upload_csv(file: UploadFile, eeg_in: schemas.EegData, db: Session = Depends(services.get_db)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please make sure you upload a CSV file.")
+   
+    contents = await file.read()
+    df = pd.read_csv(io.BytesIO(contents))
+
+
+    expected_columns={"af3", "f7", "f3", "fc5", "t7", "p7", "o1", "o2", "p8", "t8", "fc6", "f4", "f8", "af4"}
+
+
+    for _, row in df.iterrows():
+        eeg_sample =
+
+
+@app.post("/save/session")
+
+
+@app.post("/save/results")
