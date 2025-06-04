@@ -1,10 +1,12 @@
+# services.py
+
 import os
 import models
 import schemas
 
-from database import *
+from database import Base, engine, SessionLocal
 from loadenv import Settings
-from sqlalchemy.orm import *
+from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from dotenv import load_dotenv
 from typing import List, Optional
@@ -18,8 +20,10 @@ settings = Settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def create_database():
     return Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()
@@ -28,19 +32,30 @@ def get_db():
     finally:
         db.close()
 
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_pass = get_password_hash(user.password)
-    db_user = models.User(name=user.name, father_surname=user.father_surname, mother_surname=user.mother_surname, medical_department=user.medical_department, email=user.email, hashed_password=hashed_pass)
+    db_user = models.User(
+        name=user.name,
+        father_surname=user.father_surname,
+        mother_surname=user.mother_surname,
+        medical_department=user.medical_department,
+        email=user.email,
+        hashed_password=hashed_pass
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
+
 def get_patients_by_user(db: Session, user_id: int) -> List[models.Patient]:
     return db.query(models.Patient).filter(models.Patient.user_id == user_id).all()
+
 
 def create_patient(db: Session, user_id: int, patient_in: schemas.PatientCreate) -> models.Patient:
     new_patient = models.Patient(
@@ -56,11 +71,13 @@ def create_patient(db: Session, user_id: int, patient_in: schemas.PatientCreate)
     db.refresh(new_patient)
     return new_patient
 
+
 def get_password_hash(plain_password: str) -> str:
     """
     Hashes `plain_password` with bcrypt and returns the hash string.
     """
     return pwd_context.hash(plain_password)
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
@@ -68,22 +85,29 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None
+) -> str:
     """
-    Create a JWT token containing `data` (normally {"sub": <username_or_id>}) 
-    that expires in `expires_delta`.
+    Create a JWT token containing `data` (normally {"sub": <email>})
+    that expires in `expires_delta`. If `expires_delta` is None, uses
+    settings.ACCESS_TOKEN_EXPIRE_MINUTES.
     """
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def authenticate_user(db: Session, email: str, password: str) -> models.User | None:
+
+def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
     """
     Verify that a user with `email` exists and that `password` matches
     their stored hashed_password. Return the User object on success, or None.
@@ -94,6 +118,7 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User | N
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
