@@ -38,6 +38,7 @@ class Patient(Base):
     mother_surname = Column(String(100), nullable=False)
     birth_date     = Column(Date, nullable=False)
     sex            = Column(String(1), nullable=False)
+    email          = Column(String(254), unique=True, nullable=False)
 
     user     = relationship("User", back_populates="patients")
     sessions = relationship("Session", back_populates="patient")
@@ -56,10 +57,13 @@ class Session(Base):
     id                = Column(Integer, primary_key=True, index=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
+    flag              = Column(String, nullable=False)
 
     patient  = relationship("Patient", back_populates="sessions")
     eeg_data = relationship("EegData", back_populates="session")
-    res_data = relationship("ResData", back_populates="session")
+    results_y = relationship("ResultsY", back_populates="session")
+    results_amplitude = relationship("ResultsAmp", back_populates="session")
+    results_welch = relationship("ResultsWelch", back_populates="session")
 
     def __repr__(self) -> str:
         return (
@@ -100,28 +104,62 @@ class EegData(Base):
         )
 
 
-class ResData(Base):
-    __tablename__ = "res_data"
+class ResultsY(Base):
+    __tablename__ = "results_y"
 
     id           = Column(Integer, primary_key=True, index=True, nullable=False)
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    amplitude    = Column(Float, nullable=False)
-    welch        = Column(Float, nullable=False)
-    time         = Column(Float, nullable=False)  # same type as welch
-    wilcoxon     = Column(Float, nullable=False)  # same type as welch
+    y_value      = Column(Float, nullable=False)
+    time         = Column(Float, nullable=False) # time
     algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
 
-    session   = relationship("Session", back_populates="res_data")
+    session   = relationship("Session", back_populates="results_y")
     algorithm = relationship("Algorithm")
 
     def __repr__(self) -> str:
         return (
             f"<ResData(id={self.id}, session_id={self.session_id}, "
-            f"amplitude={self.amplitude}, welch={self.welch}, "
-            f"time={self.time}, wilcoxon={self.wilcoxon}, "
+            f"y_value={self.y_value}, time={self.time}" 
             f"algorithm_id={self.algorithm_id})>"
         )
+    
+class ResultsAmp(Base):
+    __tablename__ = "results_amplitude"
 
+    id           = Column(Integer, primary_key=True, index=True, nullable=False)
+    session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    amplitude    = Column(Float, nullable=False)
+    time         = Column(Float, nullable=False) # time
+    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
+
+    session   = relationship("Session", back_populates="results_amplitude")
+    algorithm = relationship("Algorithm")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ResData(id={self.id}, session_id={self.session_id}, "
+            f"amplitude={self.amplitude}, time={self.time}" 
+            f"algorithm_id={self.algorithm_id})>"
+        )
+    
+class ResultsWelch(Base):
+    __tablename__ = "results_welch"
+
+    id           = Column(Integer, primary_key=True, index=True, nullable=False)
+    session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    welch_value  = Column(Float, nullable=False)
+    time         = Column(Float, nullable=False) # time
+    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
+
+    session   = relationship("Session", back_populates="results_welch")
+    algorithm = relationship("Algorithm")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ResData(id={self.id}, session_id={self.session_id}, "
+            f"welch_value={self.welch_value}, time={self.time}" 
+            f"algorithm_id={self.algorithm_id})>"
+        )
 
 class Algorithm(Base):
     __tablename__ = "algorithm"
