@@ -1,3 +1,4 @@
+import io
 import schemas
 import services
 import models
@@ -9,11 +10,13 @@ import csv
 import os
 import time
 
+
 from typing import List
 from loadenv import Settings
 from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile
+
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import UploadFile, File, Form, Depends, HTTPException
@@ -59,9 +62,15 @@ def create_patient_for_user(
             detail=f"User with id {user_id} not found"
         )
 
+    existing = services.get_user_by_email(db, patient_in.email)
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="The entered email is already in use, please use another one"
+        )
+
     new_patient = services.create_patient(db, user_id, patient_in)
     return new_patient
-
 
 @app.get("/users/{user_id}/patients", response_model=List[schemas.Patient], summary="Get all patients for a specific user")
 def read_patients_for_user(
@@ -113,6 +122,7 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+
 class EegUploadMeta(BaseModel):
     session_id: int   # you can add more fields later
 
@@ -151,6 +161,7 @@ async def upload_csv(
     db.add_all(rows)
     db.commit()
     return {"inserted": len(rows)}
+
 
 @app.get("/sessions")
 def get_sessions_for_user(
@@ -414,3 +425,4 @@ def get_session_results(
             for r in results
         ]
     }
+
