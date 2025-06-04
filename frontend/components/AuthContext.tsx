@@ -1,14 +1,19 @@
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
   useState,
   useEffect,
-  type ReactNode,
+  PropsWithChildren,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+/**
+ * ---------------------------------------------------------------------------
+ *  Types
+ * ---------------------------------------------------------------------------
+ */
 interface User {
   id: string;
   name: string;
@@ -22,153 +27,172 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
+/**
+ * ---------------------------------------------------------------------------
+ *  Context
+ * ---------------------------------------------------------------------------
+ */
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+/**
+ * ---------------------------------------------------------------------------
+ *  Provider
+ * ---------------------------------------------------------------------------
+ *
+ * NOTE → Place this component at the **root** layout (e.g. `app/layout.tsx`) so that it is
+ * mounted exactly once. This avoids re‑mount loops that cause unwanted redirects.
+ */
+export function AuthProvider({ children }: PropsWithChildren<{}>) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
 
-  // 1) On mount, check for a stored JWT and fetch /users/me if present
+  /**
+   * 1) On first mount → check for a stored JWT and, if present, fetch `/users/me`.
+   */
   useEffect(() => {
     (async () => {
       const token = localStorage.getItem("access_token");
       if (token) {
         try {
-          // Call /users/me to get the doctor's full info
           const res = await fetch("http://localhost:8000/users/me", {
             headers: { Authorization: `Bearer ${token}` },
           });
+
           if (res.ok) {
-            const meJson: User = await res.json();
-            setUser(meJson);
-            localStorage.setItem("user", JSON.stringify(meJson));
+            const me: User = await res.json();
+            setUser(me);
+            localStorage.setItem("user", JSON.stringify(me));
           } else {
-            // Token might be invalid/expired → clear it
+            // bad / expired token
             localStorage.removeItem("access_token");
             localStorage.removeItem("user");
             setUser(null);
           }
-        } catch (error) {
-          console.error("Auth check error:", error);
-          // Clear potentially corrupted data on error
+        } catch (err) {
+          console.error("Auth check error", err);
           localStorage.removeItem("access_token");
           localStorage.removeItem("user");
           setUser(null);
         }
       }
+
       setIsLoading(false);
       setIsInitialized(true);
     })();
   }, []);
 
-  // 2) Redirect to /login if not authenticated (only after initialization and not just logged in)
+  /**
+   * 2) Client‑side guard: redirect to `/login` **only** once auth state is known.
+   *    Extra guard → don’t redirect if a token still exists. This prevents a race
+   *    condition where the token is present but the `/users/me` request hasn’t
+   *    finished yet.
+   */
   useEffect(() => {
+    const tokenExists =
+      typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("access_token"));
+
     if (
       isInitialized &&
       !isLoading &&
       !user &&
       !justLoggedIn &&
+      !tokenExists &&
       pathname !== "/login"
     ) {
       router.push("/login");
     }
   }, [user, isLoading, isInitialized, justLoggedIn, pathname, router]);
 
-  // 3) login() now calls /login (form), stores JWT, then immediately calls /users/me
-  const login = async (email: string, password: string) => {
+  /**
+   * login() → POST /login  ➜ store JWT ➜ GET /users/me ➜ navigate to dashboard
+   */
+  const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    setJustLoggedIn(true); // Prevent immediate redirect
+    setJustLoggedIn(true);
 
     try {
-      // Build form‐encoded body for OAuth2
-      const form = new URLSearchParams();
-      form.append("username", email);
-      form.append("password", password);
+      const body = new URLSearchParams();
+      body.append("username", email);
+      body.append("password", password);
 
-      const loginRes = await fetch("http://localhost:8000/login", {
+      const res = await fetch("http://localhost:8000/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: form.toString(),
+        body: body.toString(),
       });
 
-      if (!loginRes.ok) {
-        setIsLoading(false);
-        setJustLoggedIn(false);
-        return false;
-      }
+      if (!res.ok) throw new Error("Invalid credentials");
 
-      const { access_token } = await loginRes.json();
+      const { access_token } = await res.json();
       localStorage.setItem("access_token", access_token);
 
-      // Fetch /users/me to get the full doctor record (including father_surname)
       const meRes = await fetch("http://localhost:8000/users/me", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
 
-      if (!meRes.ok) {
-        // Clean up if /users/me fails
-        localStorage.removeItem("access_token");
-        setIsLoading(false);
-        setJustLoggedIn(false);
-        return false;
-      }
+      if (!meRes.ok) throw new Error("/users/me fetch failed");
 
-      const meJson: User = await meRes.json();
-      setUser(meJson);
-      localStorage.setItem("user", JSON.stringify(meJson));
+      const me: User = await meRes.json();
+      setUser(me);
+      localStorage.setItem("user", JSON.stringify(me));
 
-      setIsLoading(false);
+      // Small delay before clearing justLoggedIn, to avoid immediate redirect
+      setTimeout(() => setJustLoggedIn(false), 500);
 
-      // Clear the "just logged in" flag after a short delay to allow navigation
-      setTimeout(() => {
-        setJustLoggedIn(false);
-      }, 1000);
+      // Navigate to the default protected page
+      router.push("/results");
 
       return true;
-    } catch (error) {
-      console.error("Login error:", error);
-      // Clean up on error
+    } catch (err) {
+      console.error("Login error", err);
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
       setUser(null);
-      setIsLoading(false);
       setJustLoggedIn(false);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    // Clear state first
-    setUser(null);
-    setIsLoading(false);
-    setJustLoggedIn(false); // Reset the login flag
-
-    // Clear localStorage
+  /**
+   * logout() → clear tokens, reset state, redirect to /login
+   */
+  const logout = async (): Promise<void> => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
-
-    // Navigate to login
+    setUser(null);
+    setIsLoading(false);
+    setJustLoggedIn(false);
     router.push("/login");
   };
 
-  return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    login,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * ---------------------------------------------------------------------------
+ *  useAuth() hook – import this throughout the app
+ * ---------------------------------------------------------------------------
+ */
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 }
