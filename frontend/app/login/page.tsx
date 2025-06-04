@@ -2,9 +2,8 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useContext, } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../components/AuthContext";
 import { BarChart3, Lock, Mail, AlertCircle } from "lucide-react";
 import { createUser } from "../../API/user";
 import CreateUserModal from "../../components/CreateUserModal";
@@ -46,10 +45,11 @@ export default function LoginPage() {
       const meJson = await meRes.json();
       // meJson looks like: { id: 7, name: "...", email: "...", ... }
       const userId = meJson.id;
+      
       localStorage.setItem("user_id", String(userId));
 
       // 3) Redirect to your dashboard (or wherever)
-      router.push("/");
+      window.location.replace("/");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -140,3 +140,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+

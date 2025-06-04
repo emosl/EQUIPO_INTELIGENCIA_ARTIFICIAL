@@ -139,7 +139,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
         headers: { Authorization: `Bearer ${access_token}` },
       });
 
-      if (!meRes.ok) throw new Error("/users/me fetch failed");
+      if (!meRes.ok) throw new Error("/me fetch failed");
 
       const me: User = await meRes.json();
       setUser(me);
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
       setTimeout(() => setJustLoggedIn(false), 500);
 
       // Navigate to the default protected page
-      router.push("/results");
+      router.push("/");
 
       return true;
     } catch (err) {
