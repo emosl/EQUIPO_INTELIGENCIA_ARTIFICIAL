@@ -36,6 +36,8 @@ def get_db():
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_patient_by_email(db: Session, email: str):
+    return db.query(models.Patient).filter(models.Patient.email == email).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_pass = get_password_hash(user.password)
