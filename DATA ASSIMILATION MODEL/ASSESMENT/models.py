@@ -1,70 +1,213 @@
 # models.py
 
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import relationship
-from database import Base
+from database import Base  # <-- use the same Base for both backend and Kalman APIs
 
-class Algorithm(Base):
-    __tablename__ = "algorithm"
-    
-    id          = Column(Integer, primary_key=True, index=True, nullable=False)
-    name        = Column(String(100), nullable=False)
-    description = Column(String(255), nullable=False)
 
-    # ← add these three lines:
-    results_y     = relationship("ResultsY",    back_populates="algorithm", cascade="all, delete-orphan")
-    results_amp   = relationship("ResultsAmp",  back_populates="algorithm", cascade="all, delete-orphan")
-    results_welch = relationship("ResultsWelch", back_populates="algorithm", cascade="all, delete-orphan")
+# ── User / Patient / EEG Data / Session (main backend models) ───────────────
+
+class User(Base):
+    __tablename__ = "users"
+
+    id               = Column(Integer, primary_key=True, index=True, unique=True, nullable=False)
+    name             = Column(String(100), nullable=False)
+    father_surname   = Column(String(100), nullable=False)
+    mother_surname   = Column(String(100), nullable=False)
+    medical_department = Column(String(100), nullable=False)
+    email            = Column(String(254), unique=True, nullable=False)
+    hashed_password  = Column(String(256), nullable=False)
+    is_active        = Column(Boolean, default=True, nullable=False)
+
+    # Relationship: one User → many Patients
+    patients = relationship("Patient", back_populates="user")
+
+    def __repr__(self) -> str:
+        return (
+            f"<User(id={self.id}, Full Name={self.name} "
+            f"{self.father_surname} {self.mother_surname}, "
+            f"MD={self.medical_department}, email={self.email}, "
+            f"is_active={self.is_active})>"
+        )
+
+
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id             = Column(Integer, primary_key=True, index=True, nullable=False)
+    user_id        = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name           = Column(String(100), nullable=False)
+    father_surname = Column(String(100), nullable=False)
+    mother_surname = Column(String(100), nullable=False)
+    birth_date     = Column(Date, nullable=False)
+    sex            = Column(String(1), nullable=False)
+    email          = Column(String(254), unique=True, nullable=False)
+
+    # Relationship: many Patients → one User
+    user = relationship("User", back_populates="patients")
+
+    # Relationship: one Patient → many Sessions
+    sessions = relationship("Session", back_populates="patient")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Patient(id={self.id}, Full Name={self.name} "
+            f"{self.father_surname} {self.mother_surname}, "
+            f"birth_date={self.birth_date}, sex={self.sex})>"
+        )
 
 
 class Session(Base):
     __tablename__ = "sessions"
-    
+
     id                = Column(Integer, primary_key=True, index=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
+    flag              = Column(String, nullable=False)
 
-    # ← add these three lines:
-    results_y     = relationship("ResultsY",    back_populates="session",    cascade="all, delete-orphan")
-    results_amp   = relationship("ResultsAmp",  back_populates="session",    cascade="all, delete-orphan")
-    results_welch = relationship("ResultsWelch", back_populates="session",    cascade="all, delete-orphan")
+    # Relationship: many Sessions → one Patient
+    patient = relationship("Patient", back_populates="sessions")
+
+    # Relationship: one Session → many EegData rows
+    eeg_data = relationship("EegData", back_populates="session")
+
+    # Kalman‐related relationships (one Session → many Results)
+    results_y         = relationship("ResultsY",    back_populates="session",    cascade="all, delete-orphan")
+    results_amplitude = relationship("ResultsAmp",  back_populates="session",    cascade="all, delete-orphan")
+    results_welch     = relationship("ResultsWelch", back_populates="session",    cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Session(id={self.id}, patient_id={self.patient_id}, "
+            f"session_timestamp={self.session_timestamp})>"
+        )
+
+
+class EegData(Base):
+    __tablename__ = "eeg_data"
+
+    id         = Column(Integer, primary_key=True, index=True, nullable=False)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    af3        = Column(Float, nullable=False)
+    f7         = Column(Float, nullable=False)
+    f3         = Column(Float, nullable=False)
+    fc5        = Column(Float, nullable=False)
+    t7         = Column(Float, nullable=False)
+    p7         = Column(Float, nullable=False)
+    o1         = Column(Float, nullable=False)
+    o2         = Column(Float, nullable=False)
+    p8         = Column(Float, nullable=False)
+    t8         = Column(Float, nullable=False)
+    fc6        = Column(Float, nullable=False)
+    f4         = Column(Float, nullable=False)
+    f8         = Column(Float, nullable=False)
+    af4        = Column(Float, nullable=False)
+
+    # Relationship: many EegData rows → one Session
+    session = relationship("Session", back_populates="eeg_data")
+
+    def __repr__(self) -> str:
+        return (
+            f"<EegData(id={self.id}, session_id={self.session_id}, "
+            f"af3={self.af3}, f7={self.f7}, f3={self.f3}, fc5={self.fc5}, "
+            f"t7={self.t7}, p7={self.p7}, o1={self.o1}, o2={self.o2}, "
+            f"p8={self.p8}, t8={self.t8}, fc6={self.fc6}, f4={self.f4}, "
+            f"f8={self.f8}, af4={self.af4})>"
+        )
+
+
+# ── Kalman “Algorithm” and “Results” tables (shared by Kalman API) ─────────
+
+class Algorithm(Base):
+    __tablename__ = "algorithm"
+
+    id          = Column(Integer, primary_key=True, index=True, nullable=False)
+    name        = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=False)
+
+    # Relationship: one Algorithm → many ResultsY / ResultsAmp / ResultsWelch
+    results_y     = relationship("ResultsY",    back_populates="algorithm", cascade="all, delete-orphan")
+    results_amp   = relationship("ResultsAmp",  back_populates="algorithm", cascade="all, delete-orphan")
+    results_welch = relationship("ResultsWelch", back_populates="algorithm", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Algorithm(id={self.id}, name={self.name}, "
+            f"description={self.description})>"
+        )
 
 
 class ResultsY(Base):
     __tablename__ = "results_y"
-    
+
     id           = Column(Integer, primary_key=True, index=True, nullable=False)
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
     y_value      = Column(Float, nullable=False)
     time         = Column(Float, nullable=False)
-    
+    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
+
+    # Relationship: many ResultsY → one Session
     session   = relationship("Session",   back_populates="results_y")
+    # Relationship: many ResultsY → one Algorithm
     algorithm = relationship("Algorithm", back_populates="results_y")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ResultsY(id={self.id}, session_id={self.session_id}, "
+            f"y_value={self.y_value}, time={self.time}, "
+            f"algorithm_id={self.algorithm_id})>"
+        )
 
 
 class ResultsAmp(Base):
-    __tablename__ = "results_amp"
-    
+    __tablename__ = "results_amplitude"
+
     id           = Column(Integer, primary_key=True, index=True, nullable=False)
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
     amplitude    = Column(Float, nullable=False)
     time         = Column(Float, nullable=False)
-    
-    session   = relationship("Session",   back_populates="results_amp")
+    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
+
+    # Relationship: many ResultsAmp → one Session
+    session   = relationship("Session",   back_populates="results_amplitude")
+    # Relationship: many ResultsAmp → one Algorithm
     algorithm = relationship("Algorithm", back_populates="results_amp")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ResultsAmp(id={self.id}, session_id={self.session_id}, "
+            f"amplitude={self.amplitude}, time={self.time}, "
+            f"algorithm_id={self.algorithm_id})>"
+        )
 
 
 class ResultsWelch(Base):
     __tablename__ = "results_welch"
-    
+
     id           = Column(Integer, primary_key=True, index=True, nullable=False)
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
-    y_value      = Column(Float, nullable=False)
+    welch_value  = Column(Float, nullable=False)
     time         = Column(Float, nullable=False)
-    
+    algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
+
+    # Relationship: many ResultsWelch → one Session
     session   = relationship("Session",   back_populates="results_welch")
+    # Relationship: many ResultsWelch → one Algorithm
     algorithm = relationship("Algorithm", back_populates="results_welch")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ResultsWelch(id={self.id}, session_id={self.session_id}, "
+            f"welch_value={self.welch_value}, time={self.time}, "
+            f"algorithm_id={self.algorithm_id})>"
+        )
