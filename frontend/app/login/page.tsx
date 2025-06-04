@@ -8,6 +8,7 @@ import { useAuth } from "../../components/AuthContext"
 import { BarChart3, Lock, Mail, AlertCircle } from "lucide-react"
 import { createUser } from '../../API/user';
 import CreateUserModal from '../../components/CreateUserModal'
+import { loginUser, TokenResponse } from "../../API/auth"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -28,13 +29,15 @@ export default function LoginPage() {
       return
     }
 
-    const success = await login(email, password)
-    router.push("/results")
-    {/*if (success) {
+    try {
+      const data: TokenResponse = await loginUser({ email, password })
+      // 1) Guarda el token en localStorage (o cookies, según prefieras)
+      localStorage.setItem("access_token", data.access_token)
+      // 2) Redirige a la página principal
       router.push("/")
-    } else {
-      setError("Invalid email or password")
-    }*/}
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
 
   return (
