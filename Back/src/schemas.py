@@ -42,7 +42,7 @@ class Patient(PatientBase):
 
 # Session Classes
 class SessionBase(BaseModel):
-    patient_id: int
+    flag: str
 
 class SessionCreate(SessionBase):
     pass
@@ -77,6 +77,54 @@ class EegDataCreate(EegDataBase):
 
 class EegData(EegDataBase):
     session_id: int
+
+    class Config:
+        from_attributes = True
+
+# Y Results Classes
+class ResultsYBase(BaseModel):
+    y_value: float
+    time: float
+
+class ResultsYCreate(ResultsYBase):
+    pass
+
+class ResultsY(ResultsYBase):
+    id: int
+    session_id: int
+    algorithm_id: int
+
+    class Config:
+        from_attributes = True
+
+# Amplitude Results Classes
+class ResultsAmpBase(BaseModel):
+    amplitude: float
+    time: float
+
+class ResultsAmpCreate(ResultsAmpBase):
+    pass
+
+class ResultsAmp(ResultsAmpBase):
+    id: int
+    session_id: int
+    algorithm_id: int
+
+    class Config:
+        from_attributes = True
+
+# Welch Results Classes
+class ResultsWelchBase(BaseModel):
+    y_value: float
+    time: float
+
+class ResultsWelchCreate(ResultsWelchBase):
+    pass
+
+class ResultsWelch(ResultsWelchBase):
+    id: int
+    session_id: int
+    algorithm_id: int
 
     class Config:
         from_attributes = True
