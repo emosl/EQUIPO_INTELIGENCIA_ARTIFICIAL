@@ -10,8 +10,16 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Solo tu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 services.create_database()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # used by FastAPI’s dependency later
 
@@ -75,7 +83,9 @@ def login_for_access_token(
     If authentication succeeds, returns a JWT access_token.
     """
     # form_data.username is the “username” field in the OAuth2 form; we’ll treat that as email
+    print("DEBUG: login llamado con:", form_data.username)
     user = services.authenticate_user(db, form_data.username, form_data.password)
+    print("DEBUG: authenticate_user devolvió:", user)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -86,7 +96,7 @@ def login_for_access_token(
     # Create a token that expires in ACCESS_TOKEN_EXPIRE_MINUTES
     access_token_expires = timedelta(minutes=services.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = services.create_access_token(
-        data={"sub": user.email},  # we store email in the “sub” claim
+        data={"sub": user.id},  # we store email in the “sub” claim
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
