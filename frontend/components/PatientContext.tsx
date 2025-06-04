@@ -1,52 +1,92 @@
-"use client"
+// components/PatientContext.tsx
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+"use client";
 
-interface Patient {
-  id: string
-  name: string
-  age: number
-  gender: string
-  lastVisit: string
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+
+export interface Patient {
+  id: number;
+  name: string;
+  father_surname: string;
+  mother_surname: string;
+  birth_date: string; // e.g. "1985-02-10"
+  sex: string; // "M" or "F"
+  // add any other fields returned by your API (age, lastVisit, etc.)
 }
 
-interface PatientContextType {
-  selectedPatient: Patient | null
-  setSelectedPatient: (patient: Patient | null) => void
-  patients: Patient[]
+interface PatientContextValue {
+  patients: Patient[];
+  selectedPatient: Patient | null;
+  setSelectedPatient: (p: Patient) => void;
+  fetchPatients: () => Promise<void>;
 }
 
-const PatientContext = createContext<PatientContextType | undefined>(undefined)
+const PatientContext = createContext<PatientContextValue | undefined>(
+  undefined
+);
 
-// Sample patient data
-const samplePatients: Patient[] = [
-  { id: "1", name: "John Smith", age: 45, gender: "Male", lastVisit: "2024-01-15" },
-  { id: "2", name: "Sarah Johnson", age: 32, gender: "Female", lastVisit: "2024-01-14" },
-  { id: "3", name: "Michael Brown", age: 58, gender: "Male", lastVisit: "2024-01-13" },
-  { id: "4", name: "Emily Davis", age: 29, gender: "Female", lastVisit: "2024-01-12" },
-  { id: "5", name: "Robert Wilson", age: 67, gender: "Male", lastVisit: "2024-01-11" },
-]
+export function usePatient() {
+  const ctx = useContext(PatientContext);
+  if (!ctx) throw new Error("usePatient must be used within PatientProvider");
+  return ctx;
+}
 
-export function PatientProvider({ children }: { children: ReactNode }) {
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+interface PatientProviderProps {
+  children: ReactNode;
+}
+
+export function PatientProvider({ children }: PatientProviderProps) {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+  // Pull token & user_id from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const userId =
+    typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+
+  async function fetchPatients() {
+    if (!token || !userId) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8000/users/${userId}/patients`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!res.ok) {
+        console.error("Failed to fetch patients", await res.text());
+        return;
+      }
+      const data: Patient[] = await res.json();
+      setPatients(data);
+    } catch (err) {
+      console.error("Error fetching patients:", err);
+    }
+  }
+
+  // Whenever the provider mounts (or userId changes), fetch patients once.
+  useEffect(() => {
+    if (token && userId) {
+      fetchPatients();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, userId]);
 
   return (
     <PatientContext.Provider
-      value={{
-        selectedPatient,
-        setSelectedPatient,
-        patients: samplePatients,
-      }}
+      value={{ patients, selectedPatient, setSelectedPatient, fetchPatients }}
     >
       {children}
     </PatientContext.Provider>
-  )
-}
-
-export function usePatient() {
-  const context = useContext(PatientContext)
-  if (context === undefined) {
-    throw new Error("usePatient must be used within a PatientProvider")
-  }
-  return context
+  );
 }
