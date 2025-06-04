@@ -31,6 +31,9 @@ def get_db():
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_patient_by_email(db: Session, email: str):
+    return db.query(models.Patient).filter(models.Patient.email == email).first()
+
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_pass = get_password_hash(user.password)
     db_user = models.User(name=user.name, father_surname=user.father_surname, mother_surname=user.mother_surname, medical_department=user.medical_department, email=user.email, hashed_password=hashed_pass)

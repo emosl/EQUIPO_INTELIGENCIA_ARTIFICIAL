@@ -1,12 +1,14 @@
+import io
 import schemas
 import services
 import models
+import pandas as pd
 
 from typing import List
 from loadenv import Settings
 from datetime import timedelta
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 app = FastAPI()
@@ -41,9 +43,15 @@ def create_patient_for_user(
             detail=f"User with id {user_id} not found"
         )
 
+    existing = services.get_user_by_email(db, patient_in.email)
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="The entered email is already in use, please use another one"
+        )
+
     new_patient = services.create_patient(db, user_id, patient_in)
     return new_patient
-
 
 @app.get("/users/{user_id}/patients", response_model=List[schemas.Patient], summary="Get all patients for a specific user")
 def read_patients_for_user(

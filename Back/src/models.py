@@ -38,6 +38,7 @@ class Patient(Base):
     mother_surname = Column(String(100), nullable=False)
     birth_date     = Column(Date, nullable=False)
     sex            = Column(String(1), nullable=False)
+    email          = Column(String(254), unique=True, nullable=False)
 
     user     = relationship("User", back_populates="patients")
     sessions = relationship("Session", back_populates="patient")

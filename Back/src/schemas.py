@@ -28,6 +28,7 @@ class PatientBase(BaseModel):
     mother_surname: str
     birth_date: date
     sex: str
+    email: str
 
 class PatientCreate(PatientBase):
     pass
@@ -79,7 +80,6 @@ class EegData(EegDataBase):
 
     class Config:
         from_attributes = True
-
 
 class Token(BaseModel):
     access_token: str
