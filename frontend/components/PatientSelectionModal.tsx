@@ -1,15 +1,9 @@
 // components/PatientSelectionModal.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  X,
-  Search,
-  User as UserIcon,
-  Calendar,
-  Users as UsersIcon, // <-- import Users as UsersIcon
-} from "lucide-react";
+// Remove useRouter import since we're not using it anymore
+import { X, Search, User as UserIcon, Users as UsersIcon } from "lucide-react";
 import { usePatient } from "./PatientContext";
 
 interface PatientSelectionModalProps {
@@ -17,21 +11,21 @@ interface PatientSelectionModalProps {
   onClose: () => void;
 }
 
-// Make lastVisit optional in the type (or remove it if your API never returns it)
 interface Patient {
   id: number;
   name: string;
   father_surname: string;
   mother_surname: string;
-  birth_date: string; // e.g. "1985-02-10"
-  sex: string; // "M" or "F"
-  lastVisit?: string; // optional—only render if defined
+  birth_date: string;
+  sex: string;
+  lastVisit?: string;
 }
 
 export default function PatientSelectionModal({
   isOpen,
   onClose,
 }: PatientSelectionModalProps) {
+  // Remove router since we're not using it
   const { patients, selectedPatient, setSelectedPatient, fetchPatients } =
     usePatient();
 
@@ -46,7 +40,6 @@ export default function PatientSelectionModal({
   });
   const [error, setError] = useState("");
 
-  // Whenever the modal opens, re‐fetch the list of patients
   useEffect(() => {
     if (isOpen) {
       fetchPatients();
@@ -61,12 +54,10 @@ export default function PatientSelectionModal({
       });
       setError("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, fetchPatients]);
 
   if (!isOpen) return null;
 
-  // Filtered list based on searchTerm
   const filteredPatients = patients.filter(
     (patient) =>
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,10 +66,12 @@ export default function PatientSelectionModal({
 
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
-    onClose();
+    onClose(); // Just close the modal, don't navigate
+
+    // Optional: Show a success message or update UI to indicate patient is selected
+    // You could add a toast notification here if you have one
   };
 
-  // Helper to read token and user_id from localStorage
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   const userId =
@@ -91,14 +84,12 @@ export default function PatientSelectionModal({
       setError("Not authenticated.");
       return;
     }
-    // Basic validation
     const { name, father_surname, mother_surname, birth_date, sex } =
       newPatientData;
     if (!name || !father_surname || !mother_surname || !birth_date || !sex) {
       setError("All fields are required.");
       return;
     }
-
     try {
       const res = await fetch(
         `http://localhost:8000/users/${userId}/patients`,
@@ -115,7 +106,6 @@ export default function PatientSelectionModal({
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.detail || "Failed to create patient");
       }
-      // Clear form and re‐fetch the updated patient list
       setShowNewForm(false);
       setNewPatientData({
         name: "",
@@ -138,11 +128,16 @@ export default function PatientSelectionModal({
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <UserIcon className="h-5 w-5 mr-2" />
             Select Patient
+            {selectedPatient && (
+              <span className="ml-3 text-sm font-normal text-green-600">
+                (Currently: {selectedPatient.name})
+              </span>
+            )}
           </h2>
           <button
             onClick={onClose}
             aria-label="Close patient selection"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600"
           >
             <X className="h-6 w-6" />
           </button>
@@ -177,11 +172,12 @@ export default function PatientSelectionModal({
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
-                    <UserIcon className="h-5 w-5 text-primary-600" />
+                    <UsersIcon className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      {patient.name}
+                      {patient.name} {patient.father_surname}{" "}
+                      {patient.mother_surname}
                     </h3>
                     <p className="text-sm text-gray-600">
                       ID: {patient.id} •{" "}
@@ -191,6 +187,11 @@ export default function PatientSelectionModal({
                     </p>
                   </div>
                 </div>
+                {selectedPatient?.id === patient.id && (
+                  <div className="text-green-600 text-sm font-medium">
+                    ✓ Selected
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -203,7 +204,7 @@ export default function PatientSelectionModal({
           )}
         </div>
 
-        {/* “Create new patient” toggle */}
+        {/* Create new patient toggle */}
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={() => setShowNewForm((prev) => !prev)}
@@ -221,8 +222,8 @@ export default function PatientSelectionModal({
                 {error}
               </div>
             )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* First name */}
               <div>
                 <label
                   htmlFor="new-name"
@@ -245,7 +246,7 @@ export default function PatientSelectionModal({
                   placeholder="First Name"
                 />
               </div>
-
+              {/* Father's surname */}
               <div>
                 <label
                   htmlFor="new-father"
@@ -268,7 +269,7 @@ export default function PatientSelectionModal({
                   placeholder="Father's surname"
                 />
               </div>
-
+              {/* Mother's surname */}
               <div>
                 <label
                   htmlFor="new-mother"
@@ -291,7 +292,7 @@ export default function PatientSelectionModal({
                   placeholder="Mother's surname"
                 />
               </div>
-
+              {/* Birth date */}
               <div>
                 <label
                   htmlFor="new-birthdate"
@@ -313,7 +314,7 @@ export default function PatientSelectionModal({
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
-
+              {/* Sex */}
               <div>
                 <label
                   htmlFor="new-sex"
@@ -339,7 +340,6 @@ export default function PatientSelectionModal({
                 </select>
               </div>
             </div>
-
             <div className="pt-4 border-t border-gray-200 flex justify-end">
               <button
                 type="submit"

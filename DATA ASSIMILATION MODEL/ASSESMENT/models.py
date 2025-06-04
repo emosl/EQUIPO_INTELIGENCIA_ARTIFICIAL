@@ -48,18 +48,32 @@ class Patient(Base):
 
 class Session(Base):
     __tablename__ = "sessions"
-    id                = Column(Integer, primary_key=True, index=True, nullable=False)
+
+    id                = Column(Integer, primary_key=True, index=True, unique=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
     flag              = Column(String, nullable=False)
 
-    patient           = relationship("Patient", back_populates="sessions")
-    eeg_data          = relationship("EegData", back_populates="session")
+    # <-- NEW COLUMN to store the algorithm’s name directly on Session:
+    algorithm_name    = Column(String(100), nullable=True)
 
-    # ← THESE MUST MATCH the new Results classes below:
+    # Relationship: many Sessions → one Patient
+    patient = relationship("Patient", back_populates="sessions")
+
+    # Relationship: one Session → many EegData rows
+    eeg_data = relationship("EegData", back_populates="session")
+
+    # Kalman‐related relationships (one Session → many Results)
     results_y         = relationship("ResultsY",    back_populates="session",    cascade="all, delete-orphan")
     results_amplitude = relationship("ResultsAmp",  back_populates="session",    cascade="all, delete-orphan")
     results_welch     = relationship("ResultsWelch", back_populates="session",    cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Session(id={self.id}, patient_id={self.patient_id}, "
+            f"timestamp={self.session_timestamp}, flag={self.flag}, "
+            f"algorithm_name={self.algorithm_name})>"
+        )
 
 
 class EegData(Base):

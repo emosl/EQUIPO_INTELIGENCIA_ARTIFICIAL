@@ -5,6 +5,7 @@ import "./globals.css";
 import MenuBar from "../components/MenuBar";
 import { PatientProvider } from "../components/PatientContext";
 import { AuthProvider } from "../components/AuthContext";
+import { DashboardProvider } from "@/components/DashboardContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,12 +23,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <PatientProvider>
-            <MenuBar />
-            <main className="page-container">{children}</main>
-          </PatientProvider>
-        </AuthProvider>
+        <div suppressHydrationWarning>
+          <AuthProvider>
+            <DashboardProvider>
+              <PatientProvider>
+                <MenuBar />
+                <main className="page-container">{children}</main>
+              </PatientProvider>
+            </DashboardProvider>
+          </AuthProvider>
+        </div>
       </body>
     </html>
   );
