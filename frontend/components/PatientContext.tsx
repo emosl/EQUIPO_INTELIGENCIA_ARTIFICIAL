@@ -1,5 +1,4 @@
-// components/PatientContext.tsx
-
+// src/components/PatientContext.tsx
 "use client";
 
 import React, {
@@ -10,14 +9,14 @@ import React, {
   ReactNode,
 } from "react";
 
-export interface Patient {
+interface Patient {
   id: number;
   name: string;
   father_surname: string;
   mother_surname: string;
-  birth_date: string; // e.g. "1985-02-10"
-  sex: string; // "M" or "F"
-  // add any other fields returned by your API (age, lastVisit, etc.)
+  birth_date: string;
+  sex: string;
+  lastVisit?: string;
 }
 
 interface PatientContextValue {
@@ -31,56 +30,32 @@ const PatientContext = createContext<PatientContextValue | undefined>(
   undefined
 );
 
-export function usePatient() {
-  const ctx = useContext(PatientContext);
-  if (!ctx) throw new Error("usePatient must be used within PatientProvider");
-  return ctx;
-}
-
-interface PatientProviderProps {
-  children: ReactNode;
-}
-
-export function PatientProvider({ children }: PatientProviderProps) {
+export function PatientProvider({ children }: { children: ReactNode }) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
-  // Pull token & user_id from localStorage
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  const userId =
-    typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
-
   async function fetchPatients() {
+    // Replace this with your actual “GET /users/{user_id}/patients” call.
+    // For example, read token/userId from localStorage and hit your FastAPI route.
+    const token = localStorage.getItem("access_token");
+    const userId = localStorage.getItem("user_id");
     if (!token || !userId) return;
 
-    try {
-      const res = await fetch(
-        `http://localhost:8000/users/${userId}/patients`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (!res.ok) {
-        console.error("Failed to fetch patients", await res.text());
-        return;
-      }
-      const data: Patient[] = await res.json();
-      setPatients(data);
-    } catch (err) {
-      console.error("Error fetching patients:", err);
-    }
+    const res = await fetch(`http://localhost:8000/users/${userId}/patients`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to fetch patients");
+    const list = (await res.json()) as Patient[];
+    setPatients(list);
   }
 
-  // Whenever the provider mounts (or userId changes), fetch patients once.
+  // Optionally, fetch on mount if you want.
   useEffect(() => {
-    if (token && userId) {
-      fetchPatients();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, userId]);
+    // …or wait until your modal opens to call fetchPatients()
+  }, []);
 
   return (
     <PatientContext.Provider
@@ -89,4 +64,10 @@ export function PatientProvider({ children }: PatientProviderProps) {
       {children}
     </PatientContext.Provider>
   );
+}
+
+export function usePatient() {
+  const ctx = useContext(PatientContext);
+  if (!ctx) throw new Error("usePatient must be used inside PatientProvider");
+  return ctx;
 }

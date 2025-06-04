@@ -236,7 +236,8 @@ def create_session_for_patient(
     # Create the session
     session = models.Session(
         patient_id=patient.id,
-        session_timestamp=datetime.now()
+        session_timestamp=datetime.now(),
+        flag=session_name
     )
     db.add(session)
     db.commit()

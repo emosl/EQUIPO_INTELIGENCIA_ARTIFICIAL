@@ -30,7 +30,7 @@ class PatientBase(BaseModel):
     mother_surname: str
     birth_date: date
     sex: str
-    email: str
+    email: Optional[str]
 
 class PatientCreate(PatientBase):
     pass
