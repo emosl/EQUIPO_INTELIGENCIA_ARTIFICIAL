@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
+  Upload,
   Menu,
   X,
   ChevronDown,
@@ -19,6 +20,7 @@ import { useAuth } from "./AuthContext";
 
 const navigation = [
   { name: "Results", href: "/results", icon: BarChart3 },
+  { name: "Upload EEG", href: "/upload", icon: Upload }, // ← new
   { name: "User Manual", href: "/user-manual", icon: BookOpen },
 ];
 
