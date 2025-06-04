@@ -3,12 +3,17 @@ import schemas
 import services
 import models
 import pandas as pd, io
-
+import requests
+import json
+import tempfile
+import csv
+import os
+import time
 
 
 from typing import List
 from loadenv import Settings
-from datetime import timedelta
+from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile
 
@@ -79,7 +84,6 @@ def read_patients_for_user(
     patients = services.get_patients_by_user(db, user_id)
     return patients
 
-# ADD THIS NEW ENDPOINT
 @app.get("/users/me", response_model=schemas.User)
 def get_current_user_endpoint(
     db: Session = Depends(services.get_db),
@@ -157,4 +161,268 @@ async def upload_csv(
     db.add_all(rows)
     db.commit()
     return {"inserted": len(rows)}
+
+
+@app.get("/sessions")
+def get_sessions_for_user(
+    db: Session = Depends(services.get_db),
+    current_user: models.User = Depends(services.get_current_user)
+):
+    """
+    Get all sessions for the current authenticated user.
+    Returns sessions from all patients belonging to this user.
+    """
+    # Get all sessions through the user's patients
+    sessions = (
+        db.query(models.Session)
+        .join(models.Patient)
+        .filter(models.Patient.user_id == current_user.id)
+        .all()
+    )
+    
+    # Transform to match frontend DataSet interface
+    formatted_sessions = []
+    for session in sessions:
+        # Count EEG data points for this session to calculate size
+        eeg_count = db.query(models.EegData).filter(
+            models.EegData.session_id == session.id
+        ).count()
+        
+        # Calculate approximate size (14 floats * 8 bytes * count)
+        size_bytes = eeg_count * 14 * 8
+        if size_bytes < 1024:
+            size = f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            size = f"{size_bytes // 1024} KB"
+        else:
+            size = f"{size_bytes // (1024 * 1024)} MB"
+        
+        # Format the session data
+        formatted_session = {
+            "id": str(session.id),
+            "name": f"Session {session.id} - {session.patient.name} {session.patient.father_surname}",
+            "description": f"EEG session for patient {session.patient.name}, recorded on {session.session_timestamp.strftime('%Y-%m-%d')}",
+            "size": size,
+            "lastUpdated": session.session_timestamp.strftime('%Y-%m-%d %H:%M')
+        }
+        formatted_sessions.append(formatted_session)
+    
+    return formatted_sessions
+
+@app.post("/create-session-for-patient")
+def create_session_for_patient(
+    request: dict,  # {"patient_id": 123, "session_name": "..."}
+    db: Session = Depends(services.get_db),
+    current_user: models.User = Depends(services.get_current_user)
+):
+    """
+    Create a new session for an existing patient
+    """
+    patient_id = request["patient_id"]
+    session_name = request.get("session_name", f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Verify the patient belongs to the current user
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == patient_id,
+        models.Patient.user_id == current_user.id
+    ).first()
+    
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found or doesn't belong to current user"
+        )
+    
+    # Create the session
+    session = models.Session(
+        patient_id=patient.id,
+        session_timestamp=datetime.now()
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    
+    return {"session_id": session.id, "patient_id": patient.id}
+
+@app.post("/trigger-kalman-analysis")
+async def trigger_kalman_analysis(
+    request: dict,  # Now includes "winning_combination" field
+    db: Session = Depends(services.get_db),
+    current_user: models.User = Depends(services.get_current_user)
+):
+    session_id = request["session_id"]
+    patient_id = request["patient_id"]
+    models_list = request["models"]
+    
+    # GET THE USER-PROVIDED WINNING COMBINATION
+    winning_combination = request.get("winning_combination", [1,0,1,0,1,0,1,0,1,0,1,0,1,0])
+    
+    print(f"🔍 Starting analysis for session {session_id}")
+    print(f"🧠 Models: {models_list}")
+    print(f"⚡ User winning combination: {winning_combination}")  # This will show the user input
+    
+    # 1. Verify session belongs to current user
+    session = db.query(models.Session).join(models.Patient).filter(
+        models.Session.id == session_id,
+        models.Patient.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(404, "Session not found or access denied")
+    
+    # 2. Get EEG data for this session
+    eeg_data = db.query(models.EegData).filter(
+        models.EegData.session_id == session_id
+    ).all()
+    
+    if not eeg_data:
+        raise HTTPException(404, "No EEG data found for this session")
+    
+    print(f"📊 Found {len(eeg_data)} EEG data points")
+    
+    # 3. Create temporary CSV file with EEG data
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
+        csv_writer = csv.writer(tmp_file)
+        
+        # Write header
+        csv_writer.writerow([
+            'af3', 'f7', 'f3', 'fc5', 't7', 'p7', 'o1', 'o2', 
+            'p8', 't8', 'fc6', 'f4', 'f8', 'af4'
+        ])
+        
+        # Write data rows
+        for eeg in eeg_data:
+            csv_writer.writerow([
+                eeg.af3, eeg.f7, eeg.f3, eeg.fc5, eeg.t7, eeg.p7, eeg.o1, eeg.o2,
+                eeg.p8, eeg.t8, eeg.fc6, eeg.f4, eeg.f8, eeg.af4
+            ])
+        
+        tmp_csv_path = tmp_file.name
+    
+    print(f"📁 Created CSV file: {tmp_csv_path} ({os.path.getsize(tmp_csv_path)} bytes)")
+    try:
+        results = []
+        successful_runs = 0
+        
+        for model_name in models_list:
+            print(f"🧠 Running model: {model_name}")
+            try:
+                kalman_api_url = "http://localhost:8001/run-kalman"
+                
+                # CHANGE THIS LINE - use the user's winning combination
+                request_data = {
+                    "variant": model_name,
+                    "wC": json.dumps(winning_combination),  # ← Use user input instead of hardcoded
+                    "session_id": session_id
+                }
+                print(f"📤 Request data: {request_data}")
+                
+                with open(tmp_csv_path, 'rb') as csv_file:
+                    print(f"📤 Sending request to Kalman API...")
+                    start_time = time.time()
+                    
+                    response = requests.post(
+                        kalman_api_url,
+                        data=request_data,  # This now contains the user's wC
+                        files={"file": csv_file},
+                        timeout=600
+                    )
+                    end_time = time.time()
+                    processing_time = end_time - start_time
+                    print(f"⏱️ Processing time: {processing_time:.2f} seconds")
+                
+                print(f"📥 Kalman API response: {response.status_code}")
+                
+                # CRITICAL: Check if response is actually successful
+                if response.status_code == 200:
+                    try:
+                        response_data = response.json()
+                        print(f"✅ Model {model_name} completed successfully in {processing_time:.2f}s")
+                        successful_runs += 1
+                        results.append({
+                            "model": model_name,
+                            "status": "success",
+                            "processing_time": processing_time,
+                            "data": response_data
+                        })
+                    except json.JSONDecodeError as e:
+                        print(f"❌ Model {model_name} - Invalid JSON response: {e}")
+                        results.append({
+                            "model": model_name,
+                            "status": "failed",
+                            "error": f"Invalid JSON response: {e}",
+                            "processing_time": processing_time
+                        })
+                else:
+                    # This is probably what's happening - getting 400/500 errors
+                    error_text = response.text
+                    print(f"❌ Model {model_name} failed with status {response.status_code}")
+                    print(f"📝 Error details: {error_text}")
+                    results.append({
+                        "model": model_name,
+                        "status": "failed",
+                        "error": f"HTTP {response.status_code}: {error_text}",
+                        "processing_time": processing_time
+                    })
+                    
+            except Exception as e:
+                print(f"💥 Exception for model {model_name}: {str(e)}")
+                results.append({
+                    "model": model_name,
+                    "status": "failed",
+                    "error": str(e)
+                })
+        
+        print(f"🏁 Analysis complete: {successful_runs}/{len(models_list)} successful")
+        return {
+            "message": f"Analysis completed for {successful_runs} out of {len(models_list)} models",
+            "session_id": session_id,
+            "patient_id": patient_id,
+            "total_models": len(models_list),
+            "successful_runs": successful_runs,
+            "results": results
+        }
+        
+    finally:
+        # Clean up temporary file
+        if os.path.exists(tmp_csv_path):
+            os.unlink(tmp_csv_path)
+            print(f"🗑️ Cleaned up CSV file")
+
+@app.get("/sessions/{session_id}/results")
+def get_session_results(
+    session_id: int,
+    db: Session = Depends(services.get_db),
+    current_user: models.User = Depends(services.get_current_user)
+):
+    """Get analysis results for a session"""
+    
+    # Verify session belongs to user
+    session = db.query(models.Session).join(models.Patient).filter(
+        models.Session.id == session_id,
+        models.Patient.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(404, "Session not found")
+    
+    # Get results
+    results = db.query(models.ResData).filter(
+        models.ResData.session_id == session_id
+    ).all()
+    
+    return {
+        "session_id": session_id,
+        "results": [
+            {
+                "id": r.id,
+                "algorithm": r.algorithm.name if r.algorithm else "Unknown",
+                "amplitude": r.amplitude,
+                "welch": r.welch,
+                "y_all": r.time,
+                "y_wc": r.wilcoxon,
+            }
+            for r in results
+        ]
+    }
 

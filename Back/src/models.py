@@ -173,3 +173,21 @@ class Algorithm(Base):
             f"<Algorithm(id={self.id}, name={self.name}, "
             f"description={self.description})>"
         )
+
+class Session(Base):
+    __tablename__ = "sessions"
+    __table_args__ = {'extend_existing': True}  # Add this line
+
+    id                = Column(Integer, primary_key=True, index=True, nullable=False)
+    patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
+
+    patient  = relationship("Patient", back_populates="sessions")
+    eeg_data = relationship("EegData", back_populates="session")
+    res_data = relationship("ResData", back_populates="session")
+
+    def __repr__(self) -> str:
+        return (
+            f"<Session(id={self.id}, patient_id={self.patient_id}, "
+            f"session_timestamp={self.session_timestamp})>"
+        )
