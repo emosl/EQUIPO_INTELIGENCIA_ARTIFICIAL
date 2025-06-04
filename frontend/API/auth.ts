@@ -1,31 +1,36 @@
 // API/auth.ts
 
 export interface LoginPayload {
-    email: string
-    password: string
+  email: string;
+  password: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+}
+
+/**
+ * Envía las credenciales al endpoint POST /login y devuelve el token.
+ */
+export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
+  // Build a URLSearchParams instance:
+  const formBody = new URLSearchParams();
+  formBody.append("username", payload.email);
+  formBody.append("password", payload.password);
+
+  const response = await fetch("http://localhost:8000/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: formBody.toString(),
+  });
+
+  if (!response.ok) {
+    // If FastAPI returned a JSON error, extract the 'detail' field
+    const errorJson = await response.json().catch(() => ({}));
+    throw new Error(errorJson.detail || "Login failed");
   }
-  
-  export interface TokenResponse {
-    access_token: string
-    token_type: string
-  }
-  
-  /**
-   * Envía las credenciales al endpoint POST /login y devuelve el token.
-   */
-  export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
-    const response = await fetch("http://localhost:8000/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-  
-    if (!response.ok) {
-      // Extraemos el mensaje de error que haya devuelto FastAPI
-      const error = await response.json()
-      throw new Error(error.detail || "Login Failed")
-    }
-  
-    return response.json()
-  }
-  
+  return response.json();
+}
