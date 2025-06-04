@@ -8,8 +8,16 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Solo tu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 services.create_database()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # used by FastAPI’s dependency later
 

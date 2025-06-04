@@ -6,6 +6,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "../../components/AuthContext"
 import { BarChart3, Lock, Mail, AlertCircle } from "lucide-react"
+import { createUser } from '../../API/user';
+import CreateUserModal from '../../components/CreateUserModal'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -13,6 +15,9 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const { login, isLoading } = useAuth()
   const router = useRouter()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +38,7 @@ export default function LoginPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
@@ -132,6 +138,14 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+          <div className="mt-6 text-center">
+    <button
+      onClick={() => setIsModalOpen(true)}
+      className="text-sm text-primary-600 hover:text-primary-500 font-medium"
+    >
+      Crear cuenta nueva
+    </button>
+  </div>
 
           <div className="mt-6">
             <div className="relative">
@@ -157,5 +171,10 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    
+
+  {isModalOpen && (
+    <CreateUserModal onClose={() => setIsModalOpen(false)} />
+  )}</>
   )
 }
