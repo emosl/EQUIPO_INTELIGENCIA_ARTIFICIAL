@@ -49,7 +49,7 @@ export default function LoginPage() {
       localStorage.setItem("user_id", String(userId));
 
       // 3) Redirect to your dashboard (or wherever)
-      router.push("/");
+      window.location.href = "/";
     } catch (err: any) {
       setError(err.message);
     } finally {
