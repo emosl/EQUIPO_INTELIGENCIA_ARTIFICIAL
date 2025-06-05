@@ -1,9 +1,9 @@
 import numpy as np 
-input_original_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN/S10_amplitude_Original.csv'
-input_all_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN/S10_amplitude_All.csv'
-input_WC_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN/S10_amplitude_WC.csv'
-input_NWC_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN/S10_amplitude_NWC.csv'
-output_file = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/GRAFICAS/plot.png'       
+input_original_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos/S1_amplitude_Original.csv'
+input_all_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos/S1_amplitude_All.csv'
+input_WC_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos/S1_amplitude_WC.csv'
+input_NWC_amplitude = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos/S1_amplitude_NWC.csv'
+output_file = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos'       
 
 amplitude_original = np.loadtxt(input_original_amplitude, delimiter=',')
 amplitude_all = np.loadtxt(input_all_amplitude, delimiter=',')

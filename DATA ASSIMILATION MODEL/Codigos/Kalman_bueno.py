@@ -435,8 +435,8 @@ def ensamble_kalman(name_Signal, samplingRate, wC):
 
     return resultAll, resultOriginal, resultWC, resultNWC, yResult, yResult_WC, yResult_NWC
 
-file_path = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/KALMAN/KALMAN_Karen2/S1.csv'
-output_folder = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/PROCESSED_KALMAN'
+file_path = '/Users/emiliasalazar/Downloads/Results/EXCECUTION_TIMES/Kalman Filter Ensemble Pre2 (2).csv'
+output_folder = '/Users/emiliasalazar/INTELIGENCIA_ARTIFICIAL/EQUIPO_INTELIGENCIA_ARTIFICIAL/DATA ASSIMILATION MODEL/Codigos'
 samplingRate = 128
 aW = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1])
 allResults, originalResults, wcResults, nwcResults, yResult, yResult_WC, yResult_NWC = ensamble_kalman(file_path, samplingRate, aW)

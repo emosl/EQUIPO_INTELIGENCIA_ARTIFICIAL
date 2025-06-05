@@ -34,9 +34,9 @@ from models import (
 )
 
 # ── Kalman variant imports (unchanged) ────────────────────────────────────
-import Kalman_GramSchmidt_Potter    as kpgs
-import Kalman_GramSchmidt_Carlson   as kcgs
-import Kalman_GramSchmidt_Bierman   as kgbgs
+import Kalman_GramShmidt_Potter    as kpgs
+import Kalman_GramShmidt_Carlson   as kcgs
+import Kalman_GramShmidt_Bierman   as kgbgs
 import Kalman_Givens_Potter        as kpgv
 import Kalman_Givens_Carlson       as kcg
 import Kalman_Givens_Bierman       as kgbgv
