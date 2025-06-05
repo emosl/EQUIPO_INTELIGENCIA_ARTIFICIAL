@@ -7,11 +7,11 @@ from sqlalchemy.ext.declarative import declarative_base
 # SQLALCHEMY_DATABASE_URL = "sqlite:///./database.db"
 # engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True, connect_args={"check_same_thread":False})
 
-settings = Settings()
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://app_user:app_pass@localhost:3306/datamed?charset=utf8mb4"
 
 # NEW (for MySQL)
 engine = create_engine(
-    settings.DATABASE_URI,
+    SQLALCHEMY_DATABASE_URL,
     echo=True,        
     pool_pre_ping=True
 )

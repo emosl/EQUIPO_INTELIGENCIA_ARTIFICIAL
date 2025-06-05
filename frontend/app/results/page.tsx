@@ -158,7 +158,7 @@ export default function ResultsPage() {
     <>
       {/* If no patient is selected */}
       {!selectedPatient ? (
-        <div className="py-16 text-center">
+        <div className="py-16 text-center content-wrapper">
           <p className="text-gray-600 mb-4">
             No patient selected. Please choose a patient to view their results.
           </p>
@@ -170,7 +170,7 @@ export default function ResultsPage() {
           </button>
         </div>
       ) : (
-        <div className="px-6 py-8">
+        <div className="px-6 py-8 content-wrapper">
           {/* TITLE */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>

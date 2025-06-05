@@ -89,6 +89,9 @@ export default function DataSetSelectionModal({
 
   function handleDataSetSelect(ds: DataSet) {
     onSelectDataSet(ds);
+    if (ds.id !== "create-new") {
+      onClose();
+    }
     setIsCreatingNew(ds.id === "create-new");
   }
 
@@ -311,40 +314,41 @@ export default function DataSetSelectionModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            disabled={uploadState === "uploading"}
-          >
-            Cancel
-          </button>
+        {isCreatingNew && (
+  <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+    <button
+      onClick={onClose}
+      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      disabled={uploadState === "uploading"}
+    >
+      Cancel
+    </button>
 
-          <button
-            onClick={handleConfirm}
-            disabled={confirmDisabled}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploadState === "idle" &&
-              (isCreatingNew ? "Create & Upload" : "Confirm Upload")}
-            {uploadState === "uploading" && (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
-                {isCreatingNew ? "Creating..." : "Uploading..."}
-              </>
-            )}
-            {uploadState === "done" && (
-              <>
-                <Check className="h-4 w-4 mr-2" /> Done
-              </>
-            )}
-            {uploadState === "error" && (
-              <>
-                <X className="h-4 w-4 mr-2" /> Failed — retry
-              </>
-            )}
-          </button>
-        </div>
+    <button
+      onClick={handleConfirm}
+      disabled={confirmDisabled}
+      className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {uploadState === "idle" && "Create & Upload"}
+      {uploadState === "uploading" && (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+          Creating...
+        </>
+      )}
+      {uploadState === "done" && (
+        <>
+          <Check className="h-4 w-4 mr-2" /> Done
+        </>
+      )}
+      {uploadState === "error" && (
+        <>
+          <X className="h-4 w-4 mr-2" /> Failed — retry
+        </>
+      )}
+    </button>
+  </div>
+)}
       </div>
     </div>
   );
