@@ -46,21 +46,20 @@ class Patient(Base):
 class Session(Base):
     __tablename__ = "sessions"
 
-    id                = Column(Integer, primary_key=True, index=True, unique=True, nullable=False)
+    id                = Column(Integer, primary_key=True, index=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
-    flag              = Column(String(100), nullable=False)   # ← Length added here!
+    flag              = Column(String(128), nullable=False)
 
-    # NEW COLUMN to store the algorithm’s name directly on Session:
+    # NEW: which Kalman variant was used for this session
     algorithm_name    = Column(String(100), nullable=True)
 
-    # Relationship: many Sessions → one Patient
-    patient = relationship("Patient", back_populates="sessions")
+    # NEW: how long (in seconds) the Kalman run took
+    processing_time   = Column(Float, nullable=True)
 
-    # Relationship: one Session → many EegData rows
-    eeg_data = relationship("EegData", back_populates="session")
-
-    # Kalman‐related relationships (one Session → many Results)
+    # → existing relationships…
+    patient      = relationship("Patient", back_populates="sessions")
+    eeg_data     = relationship("EegData", back_populates="session")
     results_y         = relationship("ResultsY",    back_populates="session",    cascade="all, delete-orphan")
     results_amplitude = relationship("ResultsAmp",  back_populates="session",    cascade="all, delete-orphan")
     results_welch     = relationship("ResultsWelch", back_populates="session",    cascade="all, delete-orphan")
@@ -68,8 +67,9 @@ class Session(Base):
     def __repr__(self) -> str:
         return (
             f"<Session(id={self.id}, patient_id={self.patient_id}, "
-            f"timestamp={self.session_timestamp}, flag={self.flag}, "
-            f"algorithm_name={self.algorithm_name})>"
+            f"timestamp={self.session_timestamp}, "
+            f"algorithm_name={self.algorithm_name}, "
+            f"processing_time={self.processing_time})>"
         )
 
 
