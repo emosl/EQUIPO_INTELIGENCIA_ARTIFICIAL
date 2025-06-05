@@ -189,16 +189,18 @@ export default function ResultsPage() {
   return (
     <>
       {!selectedPatient ? (
-        <div className="py-16 text-center">
+        <div className="py-16 text-center content-wrapper">
           <p className="text-gray-600 mb-4">
             No patient selected. Please choose a patient to view their results.
           </p>
         </div>
       ) : (
+
         <div className="px-6 py-8">
           {/* ─────────────────────────────────────────────────────────── */}
           {/* TITLE & "Change Patient" BUTTON                            */}
           {/* ─────────────────────────────────────────────────────────── */}
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
               <h1 className="page-title mb-2">Results Dashboard</h1>
