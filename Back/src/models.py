@@ -73,7 +73,7 @@ class Session(Base):
     id                = Column(Integer, primary_key=True, index=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
-    flag              = Column(String, nullable=False)
+    flag              = Column(String(100), nullable=False)
 
     # Relationship: many Sessions → one Patient
     patient = relationship("Patient", back_populates="sessions")

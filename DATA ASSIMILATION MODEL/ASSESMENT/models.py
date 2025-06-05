@@ -1,4 +1,4 @@
-# models.py
+# models.py  (place this file in the same folder as your 8001‐service’s main.py)
 
 from datetime import datetime
 from sqlalchemy import (
@@ -13,9 +13,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from database import Base  # ← must be the same Base that your database.py uses
-
-
-# ── (your existing User, Patient, Session, EegData remain unchanged) ─────────
 
 class User(Base):
     __tablename__ = "users"
@@ -52,9 +49,9 @@ class Session(Base):
     id                = Column(Integer, primary_key=True, index=True, unique=True, nullable=False)
     patient_id        = Column(Integer, ForeignKey("patients.id"), nullable=False)
     session_timestamp = Column(DateTime, default=datetime.now(), nullable=False)
-    flag              = Column(String, nullable=False)
+    flag              = Column(String(100), nullable=False)   # ← Length added here!
 
-    # <-- NEW COLUMN to store the algorithm’s name directly on Session:
+    # NEW COLUMN to store the algorithm’s name directly on Session:
     algorithm_name    = Column(String(100), nullable=True)
 
     # Relationship: many Sessions → one Patient
@@ -98,15 +95,12 @@ class EegData(Base):
     session = relationship("Session", back_populates="eeg_data")
 
 
-# ── Kalman “Algorithm” and “Results” tables ──────────────────────────────────
-
 class Algorithm(Base):
     __tablename__ = "algorithm"
     id          = Column(Integer, primary_key=True, index=True, nullable=False)
     name        = Column(String(100), nullable=False)
     description = Column(String(255), nullable=False)
 
-    # These back_populates must match below
     results_y     = relationship("ResultsY",    back_populates="algorithm", cascade="all, delete-orphan")
     results_amp   = relationship("ResultsAmp",  back_populates="algorithm", cascade="all, delete-orphan")
     results_welch = relationship("ResultsWelch", back_populates="algorithm", cascade="all, delete-orphan")
@@ -118,9 +112,7 @@ class ResultsY(Base):
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
     algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
 
-    # NEW column “label” to distinguish All / WC / NWC
     label        = Column(String(16), nullable=False)
-
     y_value      = Column(Float, nullable=False)
     time         = Column(Float, nullable=False)
 
@@ -134,9 +126,7 @@ class ResultsAmp(Base):
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
     algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
 
-    # NEW column “label” to distinguish All / Original / WC / NWC
     label        = Column(String(16), nullable=False)
-
     amplitude    = Column(Float, nullable=False)
     time         = Column(Float, nullable=False)
 
@@ -150,7 +140,6 @@ class ResultsWelch(Base):
     session_id   = Column(Integer, ForeignKey("sessions.id"), nullable=False)
     algorithm_id = Column(Integer, ForeignKey("algorithm.id"), nullable=False)
 
-    # NEW: one row per frequency, storing all four PSD powers in the same row
     frequency      = Column(Float, nullable=False)
     power_all      = Column(Float, nullable=False)
     power_original = Column(Float, nullable=False)

@@ -1,4 +1,5 @@
-# schemas.py  ────────────────────────────────────────────────────────────────
+# schemas.py
+
 from typing import List, Dict
 from pydantic import BaseModel
 
@@ -19,3 +20,8 @@ class RunResponse(BaseModel):
 
     # Welch bundle
     welch: WelchBlock
+
+# ────────────────────────────────────────────────────────────────────────────
+# New: include session_run_id so callers know which SessionModel row was created
+class RunResponseWithId(RunResponse):
+    session_run_id: int
