@@ -55,11 +55,18 @@ export default function DataSetSelectionModal({
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const json: DataSet[] = await res.json();
-          setDataSets([createNewOption, ...json]);
-        } else {
-          setDataSets([createNewOption]);
-        }
+  const json = await res.json();
+  if (Array.isArray(json)) {
+    setDataSets([createNewOption, ...json]);
+  } else {
+    console.warn("Expected array, got:", json);
+    setDataSets([createNewOption]); // fallback
+  }
+} else {
+  console.error("Error fetching sessions:", await res.text());
+  setDataSets([createNewOption]); // fallback
+}
+
       } catch (err) {
         console.error("Network error loading sessions", err);
         setDataSets([createNewOption]);
@@ -161,162 +168,160 @@ export default function DataSetSelectionModal({
     uploadState === "uploading" ||
     (isCreatingNew && (!newSessionName.trim() || !selectedPatient));
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[80vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold flex items-center text-gray-900">
-            <Database className="h-5 w-5 mr-2" />
-            {isCreatingNew ? "Create New Session" : "Select Data Set"} &amp;
-            Upload CSV
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close dialog"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 space-y-6">
-          {/* Data set grid */}
-          <div className="grid gap-4">
-            {dataSets.map((ds) => (
-              <div
-                key={ds.id}
-                onClick={() => handleDataSetSelect(ds)}
-                className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                  selectedDataSet?.id === ds.id
-                    ? "border-primary-500 bg-primary-50"
-                    : "border-gray-200 hover:border-gray-300"
-                } ${ds.id === "create-new" ? "border-dashed" : ""}`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center">
-                      {ds.id === "create-new" && (
-                        <Plus className="h-5 w-5 mr-2 text-primary-600" />
-                      )}
-                      <h3 className="font-medium text-gray-900">{ds.name}</h3>
-                      {selectedDataSet?.id === ds.id && (
-                        <Check className="h-5 w-5 text-primary-600 ml-2" />
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[80vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold flex items-center text-gray-900">
+              <Database className="h-5 w-5 mr-2" />
+              {isCreatingNew ? "Create New Session" : "Select Data Set"} & Upload CSV
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+    
+          {/* Body */}
+          <div className="p-6 space-y-6">
+            {/* Data set grid */}
+            <div className="grid gap-4">
+              {dataSets.map((ds) => (
+                <div
+                  key={ds.id}
+                  onClick={() => handleDataSetSelect(ds)}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                    selectedDataSet?.id === ds.id
+                      ? "border-primary-500 bg-primary-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  } ${ds.id === "create-new" ? "border-dashed" : ""}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        {ds.id === "create-new" && (
+                          <Plus className="h-5 w-5 mr-2 text-primary-600" />
+                        )}
+                        <h3 className="font-medium text-gray-900">{ds.name}</h3>
+                        {selectedDataSet?.id === ds.id && (
+                          <Check className="h-5 w-5 text-primary-600 ml-2" />
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{ds.description}</p>
+                      {ds.id !== "create-new" && (
+                        <div className="flex items-center mt-2 text-xs text-gray-500">
+                          <span>Size: {ds.size}</span>
+                          <span className="mx-2">•</span>
+                          <span>Updated: {ds.lastUpdated}</span>
+                        </div>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {ds.description}
-                    </p>
-                    {ds.id !== "create-new" && (
-                      <div className="flex items-center mt-2 text-xs text-gray-500">
-                        <span>Size: {ds.size}</span>
-                        <span className="mx-2">•</span>
-                        <span>Updated: {ds.lastUpdated}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* New session form */}
-          {isCreatingNew && (
-            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-              <h4 className="font-medium text-gray-900">New Session Details</h4>
-              {selectedPatient ? (
-                <div className="bg-white p-3 rounded border">
-                  <p className="text-sm text-gray-600">Creating session for:</p>
-                  <p className="font-medium text-gray-900">
-                    {selectedPatient.name} {selectedPatient.father_surname}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-red-50 p-3 rounded border border-red-200">
-                  <p className="text-sm text-red-600">
-                    Please select a patient first before creating a new session.
-                  </p>
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Session Name
-                </label>
-                <input
-                  type="text"
-                  value={newSessionName}
-                  onChange={(e) => setNewSessionName(e.target.value)}
-                  placeholder="e.g., EEG Session - 2024-01-15"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  disabled={!selectedPatient}
-                />
-              </div>
+              ))}
             </div>
-          )}
-
-          {/* File picker */}
-          <div>
-            <input
-              ref={fileInputRef}
-              id="csv-file"
-              type="file"
-              accept=".csv"
-              onChange={handleFilePick}
-              className="hidden"
-              aria-label="Choose EEG CSV file"
-            />
-            <label
-              htmlFor="csv-file"
-              className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              {file ? file.name : "Click to choose EEG CSV…"}
-            </label>
-            {!file && (
-              <p className="mt-1 text-xs text-gray-500">
-                CSV must include af3, f7, f3, fc5, …, af4 columns.
-              </p>
+    
+            {/* New session form */}
+            {isCreatingNew && (
+              <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                <h4 className="font-medium text-gray-900">New Session Details</h4>
+                {selectedPatient ? (
+                  <div className="bg-white p-3 rounded border">
+                    <p className="text-sm text-gray-600">Creating session for:</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedPatient.name} {selectedPatient.father_surname}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-red-50 p-3 rounded border border-red-200">
+                    <p className="text-sm text-red-600">
+                      Please select a patient first before creating a new session.
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Session Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newSessionName}
+                    onChange={(e) => setNewSessionName(e.target.value)}
+                    placeholder="e.g., EEG Session - 2024-01-15"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                    disabled={!selectedPatient}
+                  />
+                </div>
+    
+                {/* File picker ONLY for new sessions */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    id="csv-file"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFilePick}
+                    className="hidden"
+                    aria-label="Choose EEG CSV file"
+                  />
+                  <label
+                    htmlFor="csv-file"
+                    className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+                  >
+                    <Upload className="h-5 w-5 mr-2" />
+                    {file ? file.name : "Click to choose EEG CSV…"}
+                  </label>
+                  {!file && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      CSV must include af3, f7, f3, fc5, …, af4 columns.
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            disabled={uploadState === "uploading"}
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleConfirm}
-            disabled={confirmDisabled}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploadState === "idle" &&
-              (isCreatingNew ? "Create & Upload" : "Confirm Upload")}
-            {uploadState === "uploading" && (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
-                {isCreatingNew ? "Creating..." : "Uploading..."}
-              </>
-            )}
-            {uploadState === "done" && (
-              <>
-                <Check className="h-4 w-4 mr-2" /> Done
-              </>
-            )}
-            {uploadState === "error" && (
-              <>
-                <X className="h-4 w-4 mr-2" /> Failed — retry
-              </>
-            )}
-          </button>
+    
+          {/* Footer */}
+          <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              disabled={uploadState === "uploading"}
+            >
+              Cancel
+            </button>
+    
+            <button
+              onClick={handleConfirm}
+              disabled={confirmDisabled}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploadState === "idle" &&
+                (isCreatingNew ? "Create & Upload" : "Confirm Upload")}
+              {uploadState === "uploading" && (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin inline" />
+                  {isCreatingNew ? "Creating..." : "Uploading..."}
+                </>
+              )}
+              {uploadState === "done" && (
+                <>
+                  <Check className="h-4 w-4 mr-2" /> Done
+                </>
+              )}
+              {uploadState === "error" && (
+                <>
+                  <X className="h-4 w-4 mr-2" /> Failed — retry
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+    
 }
