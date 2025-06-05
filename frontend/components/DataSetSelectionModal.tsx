@@ -257,10 +257,7 @@ export default function DataSetSelectionModal({
                   disabled={!selectedPatient}
                 />
               </div>
-            </div>
-          )}
-
-          {/* File picker */}
+              {/* File picker */}
           <div>
             <input
               ref={fileInputRef}
@@ -284,6 +281,33 @@ export default function DataSetSelectionModal({
               </p>
             )}
           </div>
+            </div>
+          )}
+
+          {/* File picker
+          <div>
+            <input
+              ref={fileInputRef}
+              id="csv-file"
+              type="file"
+              accept=".csv"
+              onChange={handleFilePick}
+              className="hidden"
+              aria-label="Choose EEG CSV file"
+            />
+            <label
+              htmlFor="csv-file"
+              className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+            >
+              <Upload className="h-5 w-5 mr-2" />
+              {file ? file.name : "Click to choose EEG CSV…"}
+            </label>
+            {!file && (
+              <p className="mt-1 text-xs text-gray-500">
+                CSV must include af3, f7, f3, fc5, …, af4 columns.
+              </p>
+            )}
+          </div> */}
         </div>
 
         {/* Footer */}

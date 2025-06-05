@@ -15,6 +15,7 @@ import {
 
 import { usePatient } from "@/components/PatientContext";
 import { Card } from "@/components/ui/card";
+import PatientSelectionModal from "../../components/PatientSelectionModal";
 
 // Spinner stub (replace/import your own spinner if you already have one)
 function Spinner() {
@@ -27,6 +28,7 @@ function Spinner() {
 
 export default function ResultsPage() {
   const { selectedPatient } = usePatient();
+  const [showPatientModal, setShowPatientModal] = useState(false);
 
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -39,6 +41,7 @@ export default function ResultsPage() {
   const [welchData, setWelchData] = useState<WelchResponse | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [errorData, setErrorData] = useState<string | null>(null);
+  
 
   // ────────────────────────────────────────────────────────────────────────────
   // Fetch all sessions, then keep only those that have amplitude arrays present
@@ -146,215 +149,226 @@ export default function ResultsPage() {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // If no patient is selected, prompt to select one
-  // ────────────────────────────────────────────────────────────────────────────
-  if (!selectedPatient) {
-    return (
-      <div className="py-16 text-center">
-        <p className="text-gray-600">
-          No patient selected. Please go back and pick a patient first.
-        </p>
-      </div>
-    );
-  }
+ 
 
   return (
-    <div className="px-6 py-8">
-      <h1 className="text-2xl font-bold mb-4">
-        Results for Patient: {selectedPatient.name}
-      </h1>
-
-      {/* Spinner / error while sessions load */}
-      {loadingSessions && (
-        <div className="my-4">
-          <Spinner />
-        </div>
-      )}
-      {errorSessions && (
-        <div className="text-red-600 mb-4 p-4 bg-red-50 border border-red-200 rounded">
-          <strong>Error:</strong> {errorSessions}
-          <br />
-          <small className="text-red-500 mt-2 block">
-            Debug info: Check browser console and verify backend is running on
-            port 8000.
-          </small>
-        </div>
-      )}
-
-      {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* 1) List only sessions that have amplitude results */}
-      {/* ──────────────────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {sessions.map((sess) => (
-          <Card
-            key={sess.id}
-            className={`
-              p-4 cursor-pointer border 
-              ${
-                activeSessionId === Number(sess.id)
-                  ? "border-blue-500"
-                  : "border-gray-200"
-              }
-            `}
-            onClick={() => setActiveSessionId(Number(sess.id))}
+    <>
+    {/* If no patient is selected */}
+    {!selectedPatient ?(
+      <div className="py-16 text-center">
+          <p className="text-gray-600 mb-4">
+            No patient selected. Please choose a patient to view their results.
+          </p>
+          <button
+            onClick={() => setShowPatientModal(true)}
+            className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium"
           >
-            <h2 className="text-lg font-semibold">Session #{sess.id}</h2>
-            <p className="text-sm text-gray-500">{sess.description}</p>
-            <p className="text-sm text-gray-600">Size: {sess.size}</p>
-            <p className="text-sm text-gray-600">
-              Last Updated: {sess.lastUpdated}
+            Select Patient
+          </button>
+        </div>
+    ):(
+      <div className="px-6 py-8">
+        {/* TITLE */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+          <div>
+            <h1 className="page-title mb-2">Results Dashboard</h1>
+            <p className="text-gray-600">
+              Analysis results for {selectedPatient.name}
             </p>
-          </Card>
-        ))}
-      </div>
-
-      {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* 2) Details for the selected session */}
-      {/* ──────────────────────────────────────────────────────────────────────── */}
-      {activeSessionId && (
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold mb-2">
-            Details for Session #{activeSessionId}
-          </h2>
-
-          {/* 2a) CSV Download Links */}
-          <div className="flex flex-wrap gap-3">
-            <a
-              href={getResultsCSVUrl(activeSessionId, "y")}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Download results_y.csv
-            </a>
-            <a
-              href={getResultsCSVUrl(activeSessionId, "amp")}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Download results_amplitude.csv
-            </a>
-            <a
-              href={getResultsCSVUrl(activeSessionId, "welch")}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Download results_welch.csv
-            </a>
           </div>
-
-          {/* 2b) Single “Original vs All” Amplitude vs Time chart */}
-          <div className="border p-4">
-            <h3 className="mb-2 font-semibold">Original vs All</h3>
-            <img
-              src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
-              alt={`Original vs All plot for session ${activeSessionId}`}
-              className="w-full h-auto border"
-            />
+          <button
+            onClick={() => setShowPatientModal(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Change Patient
+          </button>
+        </div>
+  
+        {/* Loading and Error States */}
+        {loadingSessions && (
+          <div className="my-4">
+            <Spinner />
           </div>
-
-          {/* 2c) Welch‐PSD plot (optional) */}
-          {welchData && (
+        )}
+  
+        {errorSessions && (
+          <div className="text-red-600 mb-4 p-4 bg-red-50 border border-red-200 rounded">
+            <strong>Error:</strong> {errorSessions}
+            <br />
+            <small className="text-red-500 mt-2 block">
+              Debug info: Check browser console and verify backend is running on port 8000.
+            </small>
+          </div>
+        )}
+  
+        {/* Patient Card */}
+        <div className="card mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <div className="flex items-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+              {/* Optional icon */}
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{selectedPatient.name}</h2>
+              <p className="text-sm text-gray-500">Last visit: {selectedPatient.lastVisit}</p>
+            </div>
+          </div>
+        </div>
+  
+        {/* Sessions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          {sessions.map((sess) => (
+            <Card
+              key={sess.id}
+              className={`card cursor-pointer border ${
+                activeSessionId === Number(sess.id) ? "border-blue-500" : "border-gray-200"
+              }`}
+              onClick={() => setActiveSessionId(Number(sess.id))}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Session {sess.id}</p>
+                  <p className="text-sm text-gray-500">{sess.description}</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="h-6 w-6 text-blue-600 font-bold">S</span>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-600">
+                  Size: <span className="font-semibold">{sess.size}</span>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Last Updated: <span className="font-medium">{sess.lastUpdated}</span>
+                </p>
+              </div>
+            </Card>
+          ))}
+        </div>
+  
+        {/* Session Details */}
+        {activeSessionId && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold mb-2">
+              Details for Session #{activeSessionId}
+            </h2>
+  
+            {/* CSV Links */}
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={getResultsCSVUrl(activeSessionId, "y")}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download results_y.csv
+              </a>
+              <a
+                href={getResultsCSVUrl(activeSessionId, "amp")}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download results_amplitude.csv
+              </a>
+              <a
+                href={getResultsCSVUrl(activeSessionId, "welch")}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download results_welch.csv
+              </a>
+            </div>
+  
+            {/* Plots */}
             <div className="border p-4">
-              <h3 className="mb-2 font-semibold">Welch PSD Plot</h3>
+              <h3 className="mb-2 font-semibold">Original vs All</h3>
               <img
-                src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
-                alt={`Welch PSD plot for session ${activeSessionId}`}
+                src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
+                alt={`Original vs All plot for session ${activeSessionId}`}
                 className="w-full h-auto border"
               />
             </div>
-          )}
-
-          {/* 2d) Optionally show first 10 rows of raw arrays */}
-          {loadingData && (
-            <div className="my-4">
-              <Spinner />
-            </div>
-          )}
-          {errorData && <div className="text-red-600">{errorData}</div>}
-
-          {amplitudeData && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-2">
-                Amplitude Arrays (first 10 samples)
-              </h3>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border px-2 py-1">Index</th>
-                    <th className="border px-2 py-1">Original</th>
-                    <th className="border px-2 py-1">All</th>
-                    <th className="border px-2 py-1">WC</th>
-                    <th className="border px-2 py-1">NWC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({
-                    length: Math.min(10, amplitudeData.Original.length),
-                  }).map((_, idx) => (
-                    <tr key={idx}>
-                      <td className="border px-2 py-1">{idx}</td>
-                      <td className="border px-2 py-1">
-                        {amplitudeData.Original[idx].toFixed(5)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {amplitudeData.All[idx].toFixed(5)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {amplitudeData.WC[idx].toFixed(5)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {amplitudeData.NWC[idx].toFixed(5)}
-                      </td>
+  
+            {welchData && (
+              <div className="border p-4">
+                <h3 className="mb-2 font-semibold">Welch PSD Plot</h3>
+                <img
+                  src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
+                  alt={`Welch PSD plot for session ${activeSessionId}`}
+                  className="w-full h-auto border"
+                />
+              </div>
+            )}
+  
+            {/* Data Tables */}
+            {loadingData && <Spinner />}
+            {errorData && <div className="text-red-600">{errorData}</div>}
+  
+            {amplitudeData && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2">Amplitude Arrays (first 10 samples)</h3>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border px-2 py-1">Index</th>
+                      <th className="border px-2 py-1">Original</th>
+                      <th className="border px-2 py-1">All</th>
+                      <th className="border px-2 py-1">WC</th>
+                      <th className="border px-2 py-1">NWC</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {welchData && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-2">
-                Welch PSD Data (first 10 freqs)
-              </h3>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border px-2 py-1">Freq (Hz)</th>
-                    <th className="border px-2 py-1">Power Original</th>
-                    <th className="border px-2 py-1">Power All</th>
-                    <th className="border px-2 py-1">Power WC</th>
-                    <th className="border px-2 py-1">Power NWC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {welchData.frequencies.slice(0, 10).map((f, idx) => (
-                    <tr key={idx}>
-                      <td className="border px-2 py-1">{f.toFixed(2)}</td>
-                      <td className="border px-2 py-1">
-                        {welchData.power.Original[idx].toFixed(3)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {welchData.power.All[idx].toFixed(3)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {welchData.power.WC[idx].toFixed(3)}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {welchData.power.NWC[idx].toFixed(3)}
-                      </td>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: Math.min(10, amplitudeData.Original.length) }).map((_, idx) => (
+                      <tr key={idx}>
+                        <td className="border px-2 py-1">{idx}</td>
+                        <td className="border px-2 py-1">{amplitudeData.Original[idx].toFixed(5)}</td>
+                        <td className="border px-2 py-1">{amplitudeData.All[idx].toFixed(5)}</td>
+                        <td className="border px-2 py-1">{amplitudeData.WC[idx].toFixed(5)}</td>
+                        <td className="border px-2 py-1">{amplitudeData.NWC[idx].toFixed(5)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+  
+            {welchData && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2">Welch PSD Data (first 10 freqs)</h3>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border px-2 py-1">Freq (Hz)</th>
+                      <th className="border px-2 py-1">Power Original</th>
+                      <th className="border px-2 py-1">Power All</th>
+                      <th className="border px-2 py-1">Power WC</th>
+                      <th className="border px-2 py-1">Power NWC</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+                  </thead>
+                  <tbody>
+                    {welchData.frequencies.slice(0, 10).map((f, idx) => (
+                      <tr key={idx}>
+                        <td className="border px-2 py-1">{f.toFixed(2)}</td>
+                        <td className="border px-2 py-1">{welchData.power.Original[idx].toFixed(3)}</td>
+                        <td className="border px-2 py-1">{welchData.power.All[idx].toFixed(3)}</td>
+                        <td className="border px-2 py-1">{welchData.power.WC[idx].toFixed(3)}</td>
+                        <td className="border px-2 py-1">{welchData.power.NWC[idx].toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>)}
+  
+      {/* Patient Selection Modal */}
+      <PatientSelectionModal
+        isOpen={showPatientModal}
+        onClose={() => setShowPatientModal(false)}
+      />
+    </>
   );
-}
+}  
