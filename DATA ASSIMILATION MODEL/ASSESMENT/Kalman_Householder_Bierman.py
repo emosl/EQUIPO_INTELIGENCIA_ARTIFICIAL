@@ -1,8 +1,8 @@
-# Kalman_Householder_Bierman.py
+# Kalman_Householder_Bierman_fixed.py
 import numpy as np
 import math
 from scipy import linalg as lin
-import time
+
 # --- Helper functions ---
 
 def observation_matrices(m_all, m_significant, m_non_significant):
@@ -53,40 +53,90 @@ def noiseDiagCov(noise):
     return D
 
 
-def getNextSquareRoot(P, Q, F, kind, method='householder'):
+def getNextSquareRoot(prev, Q, F, kind):
+    """
+    If kind == 'initial': prev is a full covariance matrix P.
+      - Symmetrize P, do LDL => L·D·Lᵀ, clamp D ≥ ε, form L·D⁰․⁵, then compute square-root via Householder.
+    If kind == 'other': prev is already a square-root S. Directly apply Householder to get new S.
+    Returns the updated square-root S_new.
+    """
+    epsilon = 1e-12
     if kind == 'initial':
-        Pm = (P + P.T) / 2
+        Pm = (prev + prev.T) / 2.0
         lu, d, _ = lin.ldl(Pm, lower=True)
+        # Clamp diagonal of D
+        for k in range(d.shape[0]):
+            if d[k, k] < epsilon:
+                d[k, k] = epsilon
         L = lu @ lin.fractional_matrix_power(d, 0.5)
-        return householder_rotation(F, Q, L).T
+        Snew = householder_rotation(F, Q, L)
+        return Snew.T
     else:
-        return householder_rotation(F, Q, P).T
+        # prev already S
+        Snew = householder_rotation(F, Q, prev)
+        return Snew.T
 
 
 def bierman_update(S_p, H, R, x_p, y):
+    """
+    Bierman UD‐style measurement update.
+    Inputs:
+      - S_p: prior square-root (lower triangular)
+      - H: observation matrix (h×n)
+      - R: measurement noise covariance (h×h, diagonal)
+      - x_p: prior state (n×1)
+      - y: measurement vector (h×1)
+    Returns (S_new, x_new).
+    """
+    # Reconstruct full covariance
     P_p = S_p @ S_p.T
     n = P_p.shape[0]
-    D = np.diag(P_p).copy()
+    D = np.diag(P_p).copy()      # diagonal of P_p
     U = np.eye(n)
+    # Build U such that P_p = U·diag(D)·Uᵀ
     for i in range(n):
         for j in range(i):
             U[i, j] = P_p[i, j] / D[j]
+
+    # Sequential update
     for k in range(H.shape[0]):
-        Hi = H[k:k+1]
-        yi = y[k, 0]
-        Ri = R[k, k]
-        phi = Hi @ U
-        c = D * phi.ravel()
-        alpha = Ri + phi @ c
+        Hi = H[k : k + 1]        # shape (1×n)
+        yi = y[k, 0]             # scalar
+        Ri = R[k, k]             # measurement variance scalar
+
+        # Compute φ = Hi·U  → shape (1×n)
+        phi = Hi @ U            # (1×n)
+        # c vector = D * φᵀ  → (n×1)
+        c = (D * phi.ravel()).reshape(n, 1)
+        # α = Ri + φ·c
+        alpha = Ri + (phi @ c)[0, 0]
+        # gain = c / α  → (n×1)
         gain = c / alpha
-        x_p = x_p + gain.reshape(-1,1) * (yi - Hi @ x_p)
-        D = D - gain * c
-        for m_i in range(1, n):
-            for j in range(m_i):
-                U[m_i, j] -= gain[m_i] * phi[0, j]
+
+        # State update
+        residual = yi - (Hi @ x_p)[0, 0]
+        x_p = x_p + gain * residual
+
+        # Update D: D_new = D - gain * c.flatten()
+        D = D - (gain.ravel() * c.ravel())
+
+        # Update U's lower columns
+        for mi in range(1, n):
+            for j in range(mi):
+                U[mi, j] -= gain[mi, 0] * phi[0, j]
+
+        # Ensure D ≥ ε
+        epsilon = 1e-12
+        for idx in range(n):
+            if D[idx] < epsilon:
+                D[idx] = epsilon
+
+    # Reconstruct P_upd = U·diag(D)·Uᵀ
     P_upd = U @ np.diag(D) @ U.T
-    S_t = np.linalg.cholesky(P_upd)
+    # Cholesky to get new square-root
+    S_t = np.linalg.cholesky((P_upd + P_upd.T) / 2.0)
     return S_t, x_p
+
 
 # --- Extended Ensemble Kalman returning seven outputs ---
 
@@ -94,7 +144,7 @@ def ensamble_kalman(nameSignal, Fs, wC):
     m = len(wC)
     invertWC = np.where(wC == 1, 0, 1)
     sig = readSignal(nameSignal, Fs)
-    H_all, H_sig, H_nsig = observation_matrices(m, 3, m-3)
+    H_all, H_sig, H_nsig = observation_matrices(m, 3, m - 3)
 
     sessions = len(sig)
     resultAll      = np.zeros((sessions, Fs))
@@ -103,13 +153,29 @@ def ensamble_kalman(nameSignal, Fs, wC):
     resultNWC      = np.zeros((sessions, Fs))
     yAll, yWC, yNWC = [], [], []
 
-    P_all = P_sig = P_nsig = np.cov(sig[0])
-    x_all = x_sig = x_nsig = np.zeros((m,1))
-    kind = 'initial'
+    # Initial full covariances and states
+    P_all = np.cov(sig[0])
+    P_sig = P_all.copy()
+    P_nsig = P_all.copy()
+    x_all = np.zeros((m, 1))
+    x_sig = np.zeros((m, 1))
+    x_nsig = np.zeros((m, 1))
+
+    # Initial square-roots
+    F0      = taylor_series(Fs, m)
+    F0_sig  = F0.copy();  np.fill_diagonal(F0_sig,  wC)
+    F0_nsig = F0.copy();  np.fill_diagonal(F0_nsig, invertWC)
+    Q_eye   = np.eye(m)
+
+    S_all  = getNextSquareRoot(P_all,  Q_eye, F0,      "initial")
+    S_sig  = getNextSquareRoot(P_sig,  Q_eye, F0_sig,  "initial")
+    S_nsig = getNextSquareRoot(P_nsig, Q_eye, F0_nsig, "initial")
+
+    kind = "other"  # subsequent calls use 'other'
 
     for i, block in enumerate(sig):
         for j in range(Fs):
-            # Time update
+            # --- TIME UPDATE ---
             F      = taylor_series(Fs, m)
             F_sig  = F.copy();  np.fill_diagonal(F_sig,  wC)
             F_nsig = F.copy();  np.fill_diagonal(F_nsig, invertWC)
@@ -118,56 +184,51 @@ def ensamble_kalman(nameSignal, Fs, wC):
             xpt_sig  = F_sig @ x_sig
             xpt_nsig = F_nsig @ x_nsig
 
-            resultAll[i,j] = float(xpt_all.mean())
-            resultWC[i,j]  = float(xpt_sig.mean())
-            resultNWC[i,j] = float(xpt_nsig.mean())
+            resultAll[i, j]  = float(xpt_all.mean())
+            resultWC[i, j]   = float(xpt_sig.mean())
+            resultNWC[i, j]  = float(xpt_nsig.mean())
 
-            # Measurement
-            if j < Fs-1:
-                nextState = block[:, j+1:j+2]
+            # --- MEASUREMENT (nextState) ---
+            if j < Fs - 1:
+                nextState = block[:, j + 1 : j + 2]
             else:
-                nxt = sig[i+1] if i < sessions-1 else sig[0]
-                nextState = nxt[:, 0:1]
-            resultOriginal[i,j] = float(nextState.mean())
+                if i < sessions - 1:
+                    nextState = sig[i + 1][:, 0 : 1]
+                else:
+                    nextState = sig[0][:, 0 : 1]
+            resultOriginal[i, j] = float(nextState.mean())
+
             yAll.append(float(nextState.mean()))
             yWC.append(float((H_sig @ nextState).mean()))
             yNWC.append(float((H_nsig @ nextState).mean()))
 
-            # Noise covariances
+            # --- NOISE COVARIANCES ---
             R_all  = noiseDiagCov(np.random.randn(m, m))
             R_sig  = noiseDiagCov(np.random.randn(3, 3))
-            R_nsig = noiseDiagCov(np.random.randn(m-3, m-3))
+            R_nsig = noiseDiagCov(np.random.randn(m - 3, m - 3))
 
-            # Covariance update
-            S_all  = getNextSquareRoot(P_all,  np.eye(m), F,     kind)
-            S_sig  = getNextSquareRoot(P_sig,  np.eye(m), F_sig, kind)
-            S_nsig = getNextSquareRoot(P_nsig, np.eye(m), F_nsig,kind)
+            # --- SQUARE-ROOT COVARIANCE UPDATE ---
+            S_all  = getNextSquareRoot(S_all,  Q_eye, F,      kind)
+            S_sig  = getNextSquareRoot(S_sig,  Q_eye, F_sig,  kind)
+            S_nsig = getNextSquareRoot(S_nsig, Q_eye, F_nsig, kind)
 
-            # Measurement update
-            S_all,  x_all   = bierman_update(S_all,  H_all,  R_all,  xpt_all,  nextState)
-            S_sig,  x_sig   = bierman_update(S_sig,  H_sig,  R_sig,  xpt_sig,  H_sig@nextState)
-            S_nsig, x_nsig  = bierman_update(S_nsig, H_nsig, R_nsig, xpt_nsig, H_nsig@nextState)
+            # --- MEASUREMENT UPDATE (Bierman) ---
+            S_all,  x_all   = bierman_update(S_all,  H_all,  R_all,   xpt_all,       nextState)
+            S_sig,  x_sig   = bierman_update(S_sig,  H_sig,  R_sig,   xpt_sig,       H_sig @ nextState)
+            S_nsig, x_nsig  = bierman_update(S_nsig, H_nsig, R_nsig,  xpt_nsig,      H_nsig @ nextState)
 
-            # Reconstruct P
-            P_all  = S_all  @ S_all.T
-            P_sig  = S_sig  @ S_sig.T
-            P_nsig = S_nsig @ S_nsig.T
-
-            kind = 'other'
+            kind = "other"
+        # end inner loop
+    # end outer loop
 
     return resultAll, resultOriginal, resultWC, resultNWC, yAll, yWC, yNWC
 
-# Adapter for batch script
 
+# Adapter for batch script
 def run(nameSignal, Fs, wC):
     return ensamble_kalman(nameSignal, Fs, wC)
 
 
 if __name__ == '__main__':
-    import time
-    path = '/Users/emiliasalazar/.../KALMAN/S1.csv'
-    Fs   = 128
-    wC   = np.array([0,0,0,0,0,0,0,0,0,0,0,1,1,1])
-    start = time.time()
-    outputs = run(path, Fs, wC)
-    print([o.shape if hasattr(o, 'shape') else len(o) for o in outputs])
+    # No automatic run on import
+    pass
