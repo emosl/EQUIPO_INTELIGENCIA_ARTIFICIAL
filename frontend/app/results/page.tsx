@@ -238,176 +238,210 @@ export default function ResultsPage() {
 
               {/* GRAPHS and SESSION INFO */}
               {/* Wrap everything in a 3-column grid */}
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-4">
-  {/* ──────────────────────────────────────────────────────────── */}
-  {/* Left: Plots should take up 2 columns on lg and above */}
-  {/* ──────────────────────────────────────────────────────────── */}
-  <div className="lg:col-span-2 space-y-4 p-4">
-    <div>
-      <img
-        src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
-        alt={`Original vs All plot for session ${activeSessionId}`}
-        className="w-full h-auto border rounded-md"
-      />
-    </div>
-    {welchData && (
-      <div>
-        <img
-          src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
-          alt={`Welch PSD plot for session ${activeSessionId}`}
-          className="w-full h-auto border rounded-md"
-        />
-      </div>
-    )}
-  </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-4 ">
+                {/* ──────────────────────────────────────────────────────────── */}
+                {/* Left: Plots should take up 2 columns on lg and above */}
+                {/* ──────────────────────────────────────────────────────────── */}
+                <div className="lg:col-span-2 overflow-y-auto p-4">
+                  <div>
+                    <img
+                      src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
+                      alt={`Original vs All plot for session ${activeSessionId}`}
+                      className="w-full h-auto border rounded-md"
+                    />
+                  </div>
+                  {welchData && (
+                    <div>
+                      <img
+                        src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
+                        alt={`Welch PSD plot for session ${activeSessionId}`}
+                        className="w-full h-auto border rounded-md"
+                      />
+                    </div>
+                  )}
+                </div>
 
-  {/* ──────────────────────────────────────────────────────────── */}
-  {/* Right: Model & Info take up the remaining 1 column on lg */}
-  {/* ──────────────────────────────────────────────────────────── */}
-  <div className="lg:col-span-1 space-y-6 p-4 sticky top-16">
-      {/* Model Information */}
-      <Card className="border-l-4 border-l-purple-500">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-5 w-5 text-purple-600" />
-            Model Used
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="font-semibold text-gray-900">Neural Network Classifier</p>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-100">
-            Accuracy: 94.2%
-          </Badge>
-        </CardContent>
-      </Card>
+                {/* ──────────────────────────────────────────────────────────── */}
+                {/* Right: Model & Info take up the remaining 1 column on lg */}
+                {/* ──────────────────────────────────────────────────────────── */}
+                <div className="lg:col-span-1 space-y-4 p-4 sticky top-16">
+                  {/* ─────────────────────────────────────────────────────── */}
+                  {/* Model Information (shrunken & centered) */}
+                  {/* ─────────────────────────────────────────────────────── */}
+                  <Card className="border-l-4 border-l-purple-500 mb-2 py-3">
+                    {/* Use py-1 instead of pb-1 so top and bottom padding match */}
+                    <CardHeader className="py-1">
+                      {/* justify-center to center icon + text */}
+                      <CardTitle className="flex items-center  gap-2 text-base">
+                        <Brain className="h-5 w-5 text-purple-600" />
+                        Model Used
+                      </CardTitle>
+                    </CardHeader>
+                    {/* py-1 for equal vertical padding, no change needed here */}
+                    <CardContent className="space-y-2 py-1">
+                      <p className="font-semibold text-gray-900 text-sm ">
+                        Neural Network Classifier
+                      </p>
+                      <Badge
+                        variant="secondary"
+                        className="bg-purple-100 text-purple-800 hover:bg-purple-100 text-xs mx-auto"
+                      >
+                        Accuracy: 94.2%
+                      </Badge>
+                    </CardContent>
+                  </Card>
 
-      {/* Dataset Information */}
-      <Card className="border-l-4 border-l-blue-500">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Database className="h-5 w-5 text-blue-600" />
-            Dataset Used
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="font-semibold text-gray-900">Clinical Trial Dataset A</p>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <HardDrive className="h-4 w-4" />
-              <span>2.3 GB</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span>2024-01-15</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  {/* ─────────────────────────────────────────────────────── */}
+                  {/* Dataset Information (shrunken & centered) */}
+                  {/* ─────────────────────────────────────────────────────── */}
+                  <Card className="border-l-4 border-l-blue-500 mb-2 py-3">
+                    <CardHeader className="py-1">
+                      <CardTitle className="flex items-center  gap-2 text-base">
+                        <Database className="h-5 w-5 text-blue-600" />
+                        Dataset Used
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 py-1 ">
+                      <p className="font-semibold text-gray-900 text-sm">
+                        Clinical Trial Dataset A
+                      </p>
+                      <div className="flex items-center  gap-4 text-xs text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <HardDrive className="h-4 w-4" />
+                          <span>2.3 GB</span>
+                        </div>
+                        <div className="flex  gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>2024-01-15</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-      {/* Processing Information */}
-      <Card className="border-l-4 border-l-green-500">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="h-5 w-5 text-green-600" />
-            Processing Info
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Processing Time:</span>
-            <span className="font-semibold">2.3s</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Processed:</span>
-            <span className="text-gray-900">2024-01-25 14:30</span>
-          </div>
-        </CardContent>
-      </Card>
+                  {/* ─────────────────────────────────────────────────────── */}
+                  {/* Processing Information (shrunken & centered) */}
+                  {/* ─────────────────────────────────────────────────────── */}
+                  <Card className="border-l-4 border-l-green-500 mb-2 py-3">
+                    <CardHeader className="py-1">
+                      <CardTitle className="flex  gap-2 text-base">
+                        <Clock className="h-5 w-5 text-green-600" />
+                        Processing Info
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1 py-1 text-center text-sm">
+                      <div className="flex  justify-between">
+                        <span className="text-gray-600">Processing Time:</span>
+                        <span className="font-semibold">2.3 s</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>Processed:</span>
+                        <span className="text-gray-900">2024-01-25 14:30</span>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-      {/* Session Statistics */}
-      <Card className="border-l-4 border-l-gray-400">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BarChart3 className="h-5 w-5 text-gray-600" />
-            Session Stats
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Amplitude Points:</span>
-              <Badge variant="outline" className="font-mono">
-                {amplitudeData?.All?.length ?? 0}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Welch Points:</span>
-              <Badge variant="outline" className="font-mono">
-                {welchData?.power?.All?.length ?? 0}
-              </Badge>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Status:</span>
-              <div className="flex items-center gap-1">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-green-600">Complete</span>
+                  {/* ─────────────────────────────────────────────────────── */}
+                  {/* Session Statistics (shrunken & centered) */}
+                  {/* ─────────────────────────────────────────────────────── */}
+                  <Card className="border-l-4 border-l-gray-400 mb-2 py-3">
+                    <CardHeader className="py-1">
+                      <CardTitle className="flex  gap-2 text-base">
+                        <BarChart3 className="h-5 w-5 text-gray-600" />
+                        Session Stats
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 py-1 text-sm">
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Amplitude Points:</span>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {amplitudeData?.All?.length ?? 0}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Welch Points:</span>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {welchData?.power?.All?.length ?? 0}
+                          </Badge>
+                        </div>
+                        <Separator className="my-1" />
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Status:</span>
+                          <div className="flex items-center gap-1">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="font-medium text-green-600 text-xs">Complete</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* ─────────────────────────────────────────────────────── */}
+                  {/* Download Section (shrunken & centered) */}
+                  {/* ─────────────────────────────────────────────────────── */}
+                  <Card className="mb-2">
+                    <CardHeader className="py-1">
+                      <CardTitle className="flex  gap-2 text-base">
+                        <Download className="h-5 w-5 text-gray-600" />
+                        Export Data
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-1">
+                      <div className="flex gap-2 text-xs text-center">
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="justify-center border-green-200 hover:bg-green-50 py-1 text-sm flex-1"
+                        >
+                          <a
+                            href={getResultsCSVUrl(activeSessionId, "y")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-1"
+                          >
+                            <Download className="h-4 w-4" />
+                            Results Y
+                          </a>
+                        </Button>
+
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="justify-center border-blue-200 hover:bg-blue-50 py-1 text-sm"
+                        >
+                          <a
+                            href={getResultsCSVUrl(activeSessionId, "amp")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-1 flex-1"
+                          >
+                            <Download className="h-4 w-4" />
+                            Amplitude
+                          </a>
+                        </Button>
+
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="justify-center border-purple-200 hover:bg-purple-50 py-1 text-sm"
+                        >
+                          <a
+                            href={getResultsCSVUrl(activeSessionId, "welch")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-1 flex-1"
+                          >
+                            <Download className="h-4 w-4" />
+                            Welch
+                          </a>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Download Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Download className="h-5 w-5 text-gray-600" />
-            Export Data
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2">
-            <Button asChild variant="outline" className="justify-start border-green-200 hover:bg-green-50">
-              <a
-                href={getResultsCSVUrl(activeSessionId, "y")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Results Y Data
-              </a>
-            </Button>
-
-            <Button asChild variant="outline" className="justify-start border-blue-200 hover:bg-blue-50">
-              <a
-                href={getResultsCSVUrl(activeSessionId, "amp")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Amplitude Data
-              </a>
-            </Button>
-
-            <Button asChild variant="outline" className="justify-start border-purple-200 hover:bg-purple-50">
-              <a
-                href={getResultsCSVUrl(activeSessionId, "welch")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Welch Data
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-</div>
 
 
               {/* Data Tables */}
