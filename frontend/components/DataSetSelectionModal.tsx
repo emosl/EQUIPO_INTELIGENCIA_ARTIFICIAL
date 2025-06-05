@@ -1,9 +1,11 @@
+// src/components/DataSetSelectionModal.tsx
+
 "use client";
 
 import { useState, useRef, useEffect, ChangeEvent } from "react";
+import { X, Database, Check, Upload, Loader2, Plus } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { usePatient } from "@/components/PatientContext";
-import { X, Database, Check, Upload, Loader2, Plus } from "lucide-react";
 
 export interface DataSet {
   id: string;
@@ -56,7 +58,10 @@ export default function DataSetSelectionModal({
         });
         if (res.ok) {
           const json: DataSet[] = await res.json();
-          setDataSets([createNewOption, ...json]);
+
+          // Filter out sessions that have no EEG data (size === "0 B")
+          const withData = json.filter((ds) => ds.size !== "0 B");
+          setDataSets([createNewOption, ...withData]);
         } else {
           setDataSets([createNewOption]);
         }

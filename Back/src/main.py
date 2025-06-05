@@ -1,3 +1,5 @@
+# backend_main.py
+
 import io
 import schemas
 import services
@@ -9,7 +11,6 @@ import tempfile
 import csv
 import os
 import time
-
 
 from typing import List
 from loadenv import Settings
@@ -247,7 +248,7 @@ def create_session_for_patient(
 
 @app.post("/trigger-kalman-analysis")
 async def trigger_kalman_analysis(
-    request: dict,  # Now includes "winning_combination" field
+    request: dict,  # Now includes "models" list and "winning_combination"
     db: Session = Depends(services.get_db),
     current_user: models.User = Depends(services.get_current_user)
 ):
@@ -256,11 +257,14 @@ async def trigger_kalman_analysis(
     models_list = request["models"]
     
     # GET THE USER-PROVIDED WINNING COMBINATION
-    winning_combination = request.get("winning_combination", [1,0,1,0,1,0,1,0,1,0,1,0,1,0])
+    winning_combination = request.get(
+        "winning_combination",
+        [1,0,1,0,1,0,1,0,1,0,1,0,1,0]
+    )
     
     print(f"🔍 Starting analysis for session {session_id}")
     print(f"🧠 Models: {models_list}")
-    print(f"⚡ User winning combination: {winning_combination}")  # This will show the user input
+    print(f"⚡ User winning combination: {winning_combination}")
     
     # 1. Verify session belongs to current user
     session = db.query(models.Session).join(models.Patient).filter(
@@ -287,7 +291,7 @@ async def trigger_kalman_analysis(
         
         # Write header
         csv_writer.writerow([
-            'af3', 'f7', 'f3', 'fc5', 't7', 'p7', 'o1', 'o2', 
+            'af3', 'f7', 'f3', 'fc5', 't7', 'p7', 'o1', 'o2',
             'p8', 't8', 'fc6', 'f4', 'f8', 'af4'
         ])
         
@@ -310,10 +314,9 @@ async def trigger_kalman_analysis(
             try:
                 kalman_api_url = "http://localhost:8001/run-kalman"
                 
-                # CHANGE THIS LINE - use the user's winning combination
                 request_data = {
                     "variant": model_name,
-                    "wC": json.dumps(winning_combination),  # ← Use user input instead of hardcoded
+                    "wC": json.dumps(winning_combination),
                     "session_id": session_id
                 }
                 print(f"📤 Request data: {request_data}")
@@ -324,7 +327,7 @@ async def trigger_kalman_analysis(
                     
                     response = requests.post(
                         kalman_api_url,
-                        data=request_data,  # This now contains the user's wC
+                        data=request_data,
                         files={"file": csv_file},
                         timeout=600
                     )
@@ -334,15 +337,17 @@ async def trigger_kalman_analysis(
                 
                 print(f"📥 Kalman API response: {response.status_code}")
                 
-                # CRITICAL: Check if response is actually successful
                 if response.status_code == 200:
                     try:
                         response_data = response.json()
-                        print(f"✅ Model {model_name} completed successfully in {processing_time:.2f}s")
+                        # Now includes "session_run_id"
+                        run_id = response_data.get("session_run_id")
+                        print(f"✅ Model {model_name} completed successfully in {processing_time:.2f}s (new run: {run_id})")
                         successful_runs += 1
                         results.append({
                             "model": model_name,
                             "status": "success",
+                            "session_run_id": run_id,
                             "processing_time": processing_time,
                             "data": response_data
                         })
@@ -355,7 +360,7 @@ async def trigger_kalman_analysis(
                             "processing_time": processing_time
                         })
                 else:
-                    # This is probably what's happening - getting 400/500 errors
+                    # HTTP error from Kalman service
                     error_text = response.text
                     print(f"❌ Model {model_name} failed with status {response.status_code}")
                     print(f"📝 Error details: {error_text}")
@@ -390,6 +395,7 @@ async def trigger_kalman_analysis(
             os.unlink(tmp_csv_path)
             print(f"🗑️ Cleaned up CSV file")
 
+
 @app.get("/sessions/{session_id}/results")
 def get_session_results(
     session_id: int,
@@ -407,7 +413,7 @@ def get_session_results(
     if not session:
         raise HTTPException(404, "Session not found")
     
-    # Get results
+    # Get results (assuming you have a ResData table to store aggregated results)
     results = db.query(models.ResData).filter(
         models.ResData.session_id == session_id
     ).all()
@@ -426,4 +432,3 @@ def get_session_results(
             for r in results
         ]
     }
-

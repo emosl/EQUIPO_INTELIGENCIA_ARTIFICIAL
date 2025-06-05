@@ -1,4 +1,4 @@
-// src/pages/results.tsx - FIXED VERSION
+// src/pages/results.tsx
 
 "use client";
 
@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import {
   getSessionsForPatient,
   getResultsCSVUrl,
-  getAmplitudePlotUrl,
-  getWelchPlotUrl,
   fetchAmplitudeArrays,
   fetchWelchArrays,
   SessionSummary,
@@ -18,8 +16,7 @@ import {
 import { usePatient } from "@/components/PatientContext";
 import { Card } from "@/components/ui/card";
 
-// If you already have a <Spinner /> somewhere in your ui library, import it.
-// Otherwise, use a tiny stub here:
+// Spinner stub (replace/import your own spinner if you already have one)
 function Spinner() {
   return (
     <div className="flex justify-center">
@@ -44,10 +41,9 @@ export default function ResultsPage() {
   const [errorData, setErrorData] = useState<string | null>(null);
 
   // ────────────────────────────────────────────────────────────────────────────
-  // (1) Whenever the selectedPatient changes, fetch "/sessions" from port 8000:
+  // Fetch all sessions, then keep only those that have amplitude arrays present
   // ────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // FIXED: Check if user is authenticated first
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("access_token")
@@ -58,7 +54,6 @@ export default function ResultsPage() {
       return;
     }
 
-    // If no patient is selected, bail out early
     if (!selectedPatient?.id) {
       return;
     }
@@ -66,16 +61,27 @@ export default function ResultsPage() {
     setLoadingSessions(true);
     setErrorSessions(null);
 
-    // The function now reads token from localStorage internally
     getSessionsForPatient()
-      .then((list) => {
-        setSessions(list);
+      .then(async (allSessions) => {
+        const checks = await Promise.all(
+          allSessions.map(async (sess) => {
+            try {
+              const ampResp = await fetchAmplitudeArrays(Number(sess.id));
+              const hasResults =
+                Array.isArray(ampResp.All) && ampResp.All.length > 0;
+              return { sess, hasResults };
+            } catch {
+              return { sess, hasResults: false };
+            }
+          })
+        );
+
+        const filtered = checks.filter((c) => c.hasResults).map((c) => c.sess);
+        setSessions(filtered);
         setLoadingSessions(false);
       })
       .catch((err) => {
         console.error("Session loading error:", err);
-
-        // Better error handling
         if (
           err.message.includes("401") ||
           err.message.includes("Unauthorized")
@@ -93,7 +99,7 @@ export default function ResultsPage() {
   }, [selectedPatient]);
 
   // ────────────────────────────────────────────────────────────────────────────
-  // (2) Whenever a session is clicked, fetch amplitude & welch arrays
+  // On session click, fetch amplitude & welch arrays
   // ────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (activeSessionId === null) {
@@ -122,7 +128,7 @@ export default function ResultsPage() {
   }, [activeSessionId]);
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Check if user is authenticated
+  // Check authentication
   // ────────────────────────────────────────────────────────────────────────────
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -141,7 +147,7 @@ export default function ResultsPage() {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // If no patient is selected, show a prompt
+  // If no patient is selected, prompt to select one
   // ────────────────────────────────────────────────────────────────────────────
   if (!selectedPatient) {
     return (
@@ -159,7 +165,7 @@ export default function ResultsPage() {
         Results for Patient: {selectedPatient.name}
       </h1>
 
-      {/* show spinner / error if sessions are still loading */}
+      {/* Spinner / error while sessions load */}
       {loadingSessions && (
         <div className="my-4">
           <Spinner />
@@ -171,13 +177,13 @@ export default function ResultsPage() {
           <br />
           <small className="text-red-500 mt-2 block">
             Debug info: Check browser console and verify backend is running on
-            port 8000
+            port 8000.
           </small>
         </div>
       )}
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* 3️⃣  List all sessions in a responsive grid */}
+      {/* 1) List only sessions that have amplitude results */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {sessions.map((sess) => (
@@ -203,14 +209,16 @@ export default function ResultsPage() {
         ))}
       </div>
 
-      {/* Rest of the component remains the same... */}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      {/* 2) Details for the selected session */}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
       {activeSessionId && (
         <div className="space-y-6">
           <h2 className="text-xl font-bold mb-2">
             Details for Session #{activeSessionId}
           </h2>
 
-          {/* 4a) CSV Download Links */}
+          {/* 2a) CSV Download Links */}
           <div className="flex flex-wrap gap-3">
             <a
               href={getResultsCSVUrl(activeSessionId, "y")}
@@ -238,27 +246,29 @@ export default function ResultsPage() {
             </a>
           </div>
 
-          {/* 4b) Inline PNG Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 2b) Single “Original vs All” Amplitude vs Time chart */}
+          <div className="border p-4">
+            <h3 className="mb-2 font-semibold">Original vs All</h3>
+            <img
+              src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
+              alt={`Original vs All plot for session ${activeSessionId}`}
+              className="w-full h-auto border"
+            />
+          </div>
+
+          {/* 2c) Welch‐PSD plot (optional) */}
+          {welchData && (
             <div className="border p-4">
-              <h3 className="mb-2 font-semibold">Amplitude vs Time</h3>
+              <h3 className="mb-2 font-semibold">Welch PSD Plot</h3>
               <img
-                src={getAmplitudePlotUrl(activeSessionId)}
-                alt={`Amplitude plot for session ${activeSessionId}`}
-                className="w-full h-auto border"
-              />
-            </div>
-            <div className="border p-4">
-              <h3 className="mb-2 font-semibold">Welch PSD</h3>
-              <img
-                src={getWelchPlotUrl(activeSessionId)}
+                src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
                 alt={`Welch PSD plot for session ${activeSessionId}`}
                 className="w-full h-auto border"
               />
             </div>
-          </div>
+          )}
 
-          {/* 4c) Optionally show first 10 rows of raw arrays */}
+          {/* 2d) Optionally show first 10 rows of raw arrays */}
           {loadingData && (
             <div className="my-4">
               <Spinner />
@@ -308,7 +318,9 @@ export default function ResultsPage() {
 
           {welchData && (
             <div className="mt-4">
-              <h3 className="font-semibold mb-2">Welch PSD (first 10 freqs)</h3>
+              <h3 className="font-semibold mb-2">
+                Welch PSD Data (first 10 freqs)
+              </h3>
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
