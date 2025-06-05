@@ -18,6 +18,7 @@ import { usePatient } from "../components/PatientContext";
 import PatientSelectionModal from "../components/PatientSelectionModal";
 import DataSetSelectionModal from "../components/DataSetSelectionModal";
 import ModelSelectionModal from "../components/ModelSelectionModal";
+import { useRouter } from "next/navigation";
 
 interface Doctor {
   id: number;
@@ -40,6 +41,7 @@ export default function HomePage() {
   const [winningCombination, setWinningCombination] = useState(
     "1,0,1,0,1,0,1,0,1,0,1,0,1,0"
   );
+  const router = useRouter();
 
   // State for doctor's info
   const [doctor, setDoctor] = useState<Doctor | null>(null);
@@ -128,15 +130,16 @@ export default function HomePage() {
 
       // Better success message
       if (result.successful_runs > 0) {
-        alert(
-          `✅ EnKF Analysis completed successfully!\n${
-            result.successful_runs
-          }/${
-            result.total_models
-          } models completed\nProcessing time: ~${Math.round(
-            result.results[0]?.processing_time || 0
-          )} seconds`
-        );
+        // alert(
+        //   `✅ EnKF Analysis completed successfully!\n${
+        //     result.successful_runs
+        //   }/${
+        //     result.total_models
+        //   } models completed\nProcessing time: ~${Math.round(
+        //     result.results[0]?.processing_time || 0
+        //   )} seconds`
+        // );
+        router.push(`/results?sessionId=${selectedDataSet.id}`);
       } else {
         alert(
           `❌ Analysis failed!\n${result.message}\nCheck console for details.`
