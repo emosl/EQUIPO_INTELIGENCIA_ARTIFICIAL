@@ -173,23 +173,21 @@ def get_sessions_for_user(
     Get all sessions for the current authenticated user.
     Returns sessions from all patients belonging to this user.
     """
-    # Get all sessions through the user's patients
+    # 1) Gather all Session rows for this user
     sessions = (
         db.query(models.Session)
         .join(models.Patient)
         .filter(models.Patient.user_id == current_user.id)
         .all()
     )
-    
-    # Transform to match frontend DataSet interface
+
     formatted_sessions = []
     for session in sessions:
         # Count EEG data points for this session to calculate size
         eeg_count = db.query(models.EegData).filter(
             models.EegData.session_id == session.id
         ).count()
-        
-        # Calculate approximate size (14 floats * 8 bytes * count)
+
         size_bytes = eeg_count * 14 * 8
         if size_bytes < 1024:
             size = f"{size_bytes} B"
@@ -197,18 +195,19 @@ def get_sessions_for_user(
             size = f"{size_bytes // 1024} KB"
         else:
             size = f"{size_bytes // (1024 * 1024)} MB"
-        
-        # Format the session data
+
         formatted_session = {
             "id": str(session.id),
             "name": f"Session {session.id} - {session.patient.name} {session.patient.father_surname}",
             "description": f"EEG session for patient {session.patient.name}, recorded on {session.session_timestamp.strftime('%Y-%m-%d')}",
             "size": size,
-            "lastUpdated": session.session_timestamp.strftime('%Y-%m-%d %H:%M')
+            "lastUpdated": session.session_timestamp.strftime('%Y-%m-%d %H:%M'),
+             "algorithm_name": session.algorithm_name or "",        
+            "processing_time": float(session.processing_time or 0.0)
         }
         formatted_sessions.append(formatted_session)
-    
     return formatted_sessions
+
 
 @app.post("/create-session-for-patient")
 def create_session_for_patient(

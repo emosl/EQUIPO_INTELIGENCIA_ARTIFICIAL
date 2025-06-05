@@ -5,6 +5,7 @@ import json
 import shutil
 import tempfile
 from typing import Dict
+import time
 
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
@@ -197,10 +198,13 @@ async def run_kalman_endpoint(
     db.commit()
     db.refresh(new_sess)
 
+    
+
     # 6) Find or create the Algorithm row
     algorithm = get_or_create_algorithm(db, variant)
 
     # 7) Run the chosen Kalman variant
+    run_start = time.time()
     try:
         run_fn = kalman_variants[variant]
         amp_all, amp_orig, amp_wc, amp_nwc, y_all, y_wc, y_nwc = run_fn(
@@ -210,6 +214,14 @@ async def run_kalman_endpoint(
         raise HTTPException(500, f"Kalman error: {e}")
     finally:
         os.unlink(tmp_path)
+    
+    run_end = time.time()
+    elapsed = run_end - run_start
+
+    new_sess.processing_time = elapsed
+    db.add(new_sess)
+    db.commit()
+    db.refresh(new_sess)
 
     # 8) Prepare to store everything under new_sess.id
     sess_to_store = new_sess.id
@@ -542,3 +554,30 @@ def plot_welch_png(session_id: int, db: Session = Depends(get_db)):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
+
+@app.get("/sessions")
+async def get_sessions(db: Session = Depends(get_db)):
+    """
+    Get all sessions from the database.
+    Maps database fields to the format expected by the frontend.
+    """
+    sessions = db.query(SessionModel).order_by(SessionModel.session_timestamp.desc()).all()
+    
+    # Map database fields to frontend expected format
+    session_summaries = []
+    for sess in sessions:
+        # Calculate size based on whether session has results
+        has_amplitude_data = db.query(ResultsAmp).filter(ResultsAmp.session_id == sess.id).first() is not None
+        size = "Processing Complete" if has_amplitude_data else "No Results"
+        
+        session_summaries.append({
+            "id": str(sess.id),
+            "name": sess.flag or f"Session {sess.id}",  # Use flag as session name
+            "description": f"Kalman Analysis - {sess.algorithm_name}" if sess.algorithm_name else "Data Session",
+            "size": size,
+            "lastUpdated": sess.session_timestamp.strftime("%Y-%m-%d %H:%M:%S") if sess.session_timestamp else "Unknown",
+            "algorithm_name": sess.algorithm_name or "N/A",
+            "processing_time": float(sess.processing_time) if sess.processing_time else 0.0
+        })
+    
+    return session_summaries

@@ -1,16 +1,29 @@
 // src/API/result.ts
 
 // ─────────────────────────────────────────────────────────────────────────────
-// These two environment variables should point to port 8000 and 8001 respectively.
-// Make sure you have in your .env.local:
-//   NEXT_PUBLIC_BACKEND_BASE_URL=http://localhost:8000
-//   NEXT_PUBLIC_RESULT_BASE_URL=http://localhost:8001
+// Environment variable validation with helpful error messages
 // ─────────────────────────────────────────────────────────────────────────────
-const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL!; // e.g. "http://localhost:8000"
-const RESULT_BASE = process.env.NEXT_PUBLIC_RESULT_BASE_URL!; // e.g. "http://localhost:8001"
+const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
+const RESULT_BASE = process.env.NEXT_PUBLIC_RESULT_BASE_URL;
+
+// Validate environment variables are set
+if (!BACKEND_BASE) {
+  throw new Error(
+    "NEXT_PUBLIC_BACKEND_BASE_URL is not set. Please add it to your .env.local file (e.g., http://localhost:8000)"
+  );
+}
+
+if (!RESULT_BASE) {
+  throw new Error(
+    "NEXT_PUBLIC_RESULT_BASE_URL is not set. Please add it to your .env.local file (e.g., http://localhost:8001)"
+  );
+}
+
+console.log("API Configuration:", { BACKEND_BASE, RESULT_BASE });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// (1) “SessionSummary” shape matches what GET /sessions returns on port 8000
+// (1) "SessionSummary" shape matches what GET /sessions returns on port 8000.
+//     We have added "algorithm_name" and "processing_time" on the backend.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface SessionSummary {
   id: string;
@@ -18,51 +31,71 @@ export interface SessionSummary {
   description: string;
   size: string;
   lastUpdated: string;
+
+  // ─────────── NEW ───────────
+  algorithm_name: string; // e.g. "Carlson_GramSchmidt"
+  processing_time: number; // e.g. 59.3813 (seconds)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1️⃣  Fetch all sessions *for the currently authenticated user*.
-//     The back-end route is GET http://localhost:8000/sessions.
-//     We simply read the JWT from localStorage and send it in the header.
+// 1️⃣  Fetch all sessions for the current authenticated user.
+//     ↳ Calls GET http://localhost:8000/sessions
+//     We read the JWT from localStorage and send it in the Authorization header.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getSessionsForPatient(): Promise<SessionSummary[]> {
-  // 1) Read the token that AuthContext already stored in localStorage
+  // 1) Read the token that AuthContext stored in localStorage
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-  // 2) If no token, bail early (the backend will also reject, but we can guard here)
   if (!token) {
-    throw new Error("No access token found.  You must be logged in.");
+    throw new Error("No access token found. You must be logged in.");
   }
 
-  const res = await fetch(`${BACKEND_BASE}/sessions`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  console.log("Fetching sessions from:", `${BACKEND_BASE}/sessions`);
 
-  if (!res.ok) {
-    throw new Error(`Failed to load sessions (status ${res.status})`);
+  try {
+    const res = await fetch(`${BACKEND_BASE}/sessions`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(
+        `Failed to load sessions (status ${res.status}): ${errorText}`
+      );
+    }
+
+    return (await res.json()) as SessionSummary[];
+  } catch (error) {
+    if (
+      error instanceof TypeError &&
+      error.message.includes("Failed to fetch")
+    ) {
+      throw new Error(
+        `Cannot connect to backend server at ${BACKEND_BASE}. Please ensure the backend is running on port 8000.`
+      );
+    }
+    throw error;
   }
-
-  return (await res.json()) as SessionSummary[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2️⃣  Build “download CSV” URLs on the Kalman results server (port 8001)
+// 2️⃣  Build "download CSV" URLs on the RESULTS server (port 8001)
 // ─────────────────────────────────────────────────────────────────────────────
 export function getResultsCSVUrl(
   sessionId: number,
   kind: "y" | "amp" | "welch"
 ): string {
-  // Example: http://localhost:8001/sessions/42/results/csv?type=y
+  // e.g. "http://localhost:8001/sessions/42/results/csv?type=y"
   return `${RESULT_BASE}/sessions/${sessionId}/results/csv?type=${kind}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3️⃣  Fetch raw amplitude arrays from RESULTS server (no auth‐header needed here)
+// 3️⃣  Fetch raw amplitude arrays from RESULTS server
 // ─────────────────────────────────────────────────────────────────────────────
 export interface AmplitudeResponse {
   All: number[];
@@ -70,21 +103,35 @@ export interface AmplitudeResponse {
   WC: number[];
   NWC: number[];
 }
-
 export async function fetchAmplitudeArrays(
   sessionId: number
 ): Promise<AmplitudeResponse> {
-  const res = await fetch(
-    `${RESULT_BASE}/sessions/${sessionId}/results/amplitude`,
-    {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
+  try {
+    const res = await fetch(
+      `${RESULT_BASE}/sessions/${sessionId}/results/amplitude`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(
+        `Failed to fetch amplitude arrays (status ${res.status}): ${errorText}`
+      );
     }
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to fetch amplitude arrays (status ${res.status})`);
+    return (await res.json()) as AmplitudeResponse;
+  } catch (error) {
+    if (
+      error instanceof TypeError &&
+      error.message.includes("Failed to fetch")
+    ) {
+      throw new Error(
+        `Cannot connect to results server at ${RESULT_BASE}. Please ensure the results server is running on port 8001.`
+      );
+    }
+    throw error;
   }
-  return (await res.json()) as AmplitudeResponse;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,32 +146,45 @@ export interface WelchResponse {
     NWC: number[];
   };
 }
-
 export async function fetchWelchArrays(
   sessionId: number
 ): Promise<WelchResponse> {
-  const res = await fetch(
-    `${RESULT_BASE}/sessions/${sessionId}/results/welch`,
-    {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
+  try {
+    const res = await fetch(
+      `${RESULT_BASE}/sessions/${sessionId}/results/welch`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(
+        `Failed to fetch Welch arrays (status ${res.status}): ${errorText}`
+      );
     }
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Welch arrays (status ${res.status})`);
+    return (await res.json()) as WelchResponse;
+  } catch (error) {
+    if (
+      error instanceof TypeError &&
+      error.message.includes("Failed to fetch")
+    ) {
+      throw new Error(
+        `Cannot connect to results server at ${RESULT_BASE}. Please ensure the results server is running on port 8001.`
+      );
+    }
+    throw error;
   }
-  return (await res.json()) as WelchResponse;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5️⃣  Build “plot” URLs on RESULTS server
+// 5️⃣  Build "plot" URLs on RESULTS server (port 8001)
 // ─────────────────────────────────────────────────────────────────────────────
 export function getAmplitudePlotUrl(sessionId: number): string {
-  // e.g.  http://localhost:8001/sessions/42/plot/amplitude.png
+  // e.g. "http://localhost:8001/sessions/42/plot/amplitude.png"
   return `${RESULT_BASE}/sessions/${sessionId}/plot/amplitude.png`;
 }
-
 export function getWelchPlotUrl(sessionId: number): string {
-  // e.g.  http://localhost:8001/sessions/42/plot/welch.png
+  // e.g. "http://localhost:8001/sessions/42/plot/welch.png"
   return `${RESULT_BASE}/sessions/${sessionId}/plot/welch.png`;
 }
