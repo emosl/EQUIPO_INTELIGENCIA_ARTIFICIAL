@@ -6,6 +6,8 @@ import { useState, useEffect } from "react";
 import { X, Search, User as UserIcon, Users as UsersIcon } from "lucide-react";
 import { usePatient } from "./PatientContext";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 interface PatientSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -84,6 +86,10 @@ export default function PatientSelectionModal({
       setError("Not authenticated.");
       return;
     }
+    if (!BACKEND_URL) {
+      setError("Backend URL not configured.");
+      return;
+    }
     const { name, father_surname, mother_surname, birth_date, sex } =
       newPatientData;
     if (!name || !father_surname || !mother_surname || !birth_date || !sex) {
@@ -91,17 +97,14 @@ export default function PatientSelectionModal({
       return;
     }
     try {
-      const res = await fetch(
-        `http://localhost:8000/users/${userId}/patients`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(newPatientData),
-        }
-      );
+      const res = await fetch(`${BACKEND_URL}/users/${userId}/patients`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newPatientData),
+      });
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.detail || "Failed to create patient");

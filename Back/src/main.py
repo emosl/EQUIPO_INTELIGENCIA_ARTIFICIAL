@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import UploadFile, File, Form, Depends, HTTPException
 from pydantic import BaseModel
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+KALMAN_URL = os.getenv("KALMAN_URL", "http://localhost:8001")
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -311,7 +313,7 @@ async def trigger_kalman_analysis(
         for model_name in models_list:
             print(f"🧠 Running model: {model_name}")
             try:
-                kalman_api_url = "http://localhost:8001/run-kalman"
+                kalman_api_url = f"{KALMAN_URL}/run-kalman"
                 
                 request_data = {
                     "variant": model_name,

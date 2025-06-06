@@ -9,6 +9,7 @@ import { BarChart3, Lock, Mail, AlertCircle } from "lucide-react";
 import { createUser } from "../../API/user";
 import CreateUserModal from "../../components/CreateUserModal";
 import { loginUser, TokenResponse } from "../../API/auth";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -35,7 +36,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", token);
 
       // 2) Fetch /users/me with that token to learn the user’s ID
-      const meRes = await fetch("http://localhost:8000/users/me", {
+      const meRes = await fetch(`${BACKEND_URL}/users/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
