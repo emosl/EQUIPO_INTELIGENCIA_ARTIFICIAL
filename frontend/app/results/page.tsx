@@ -18,8 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 import {
   Brain,
+  History,
   Database,
   Clock,
   BarChart3,
@@ -27,6 +30,7 @@ import {
   CheckCircle,
   Calendar,
   HardDrive,
+  Activity,
 } from "lucide-react";
 
 const KALMAN_URL = process.env.NEXT_PUBLIC_KALMAN_URL;
@@ -56,6 +60,11 @@ interface SessionDetail {
 export default function ResultsPage() {
   const { selectedPatient } = usePatient();
   const [showPatientModal, setShowPatientModal] = useState(false);
+  // const router = useRouter();
+  // const { sessionId } = router.query; 
+  // In the App Router, useSearchParams() is the way to read ?sessionId=…
+  const searchParams = useSearchParams();
+  const sessionIdParam = searchParams.get("sessionId");
 
   // ────────────────────────────────────────────────────────────────────────────
   // State: all sessions for this user
@@ -79,6 +88,7 @@ export default function ResultsPage() {
   const [loadingData, setLoadingData] = useState(false);
   const [errorData, setErrorData] = useState<string | null>(null);
 
+
   // ────────────────────────────────────────────────────────────────────────────
   // State: session‐detail placeholder (algorithm_name, processing_time, timestamp)
   // ────────────────────────────────────────────────────────────────────────────
@@ -91,6 +101,14 @@ export default function ResultsPage() {
     }
   );
 
+  useEffect(() => {
+    if (sessionIdParam && selectedPatient && typeof sessionIdParam === "string") {
+      const parsed = parseInt(sessionIdParam, 10);
+      if (!isNaN(parsed)) {
+        setActiveSessionId(parsed);
+      }
+    }
+  }, [sessionIdParam, selectedPatient]);
   // ────────────────────────────────────────────────────────────────────────────
   // (1️⃣) Fetch all sessions for the user whenever the selected patient changes.
   //       Then filter to keep only those sessions that have amplitude data on port 8001.
@@ -103,6 +121,8 @@ export default function ResultsPage() {
         ? localStorage.getItem("access_token")
         : null;
     if (!token) return;
+    setLoadingSessions(true);
+    setErrorSessions(null);
 
     getSessionsForPatient()
       .then(async (allSessions) => {
@@ -119,10 +139,12 @@ export default function ResultsPage() {
         );
         const filtered = checks.filter((c) => c.hasResults).map((c) => c.sess);
         setSessions(filtered);
+        setLoadingSessions(false);
       })
       .catch((err) => {
         console.error("Session loading error:", err);
         setErrorSessions("Failed to load sessions");
+        setLoadingSessions(false);
       });
   }, [selectedPatient]);
 
@@ -190,15 +212,22 @@ export default function ResultsPage() {
 
   return (
     <>
+      {/* If no patient is selected */}
       {!selectedPatient ? (
         <div className="py-16 text-center content-wrapper">
           <p className="text-gray-600 mb-4">
             No patient selected. Please choose a patient to view their results.
           </p>
+          <button
+            onClick={() => setShowPatientModal(true)}
+            className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium"
+          >
+            Select Patient
+          </button>
         </div>
       ) : (
 
-        <div className="px-6 py-8">
+        <div className="px-6 py-8 content-wrapper">
           {/* ─────────────────────────────────────────────────────────── */}
           {/* TITLE & "Change Patient" BUTTON                            */}
           {/* ─────────────────────────────────────────────────────────── */}
@@ -210,12 +239,36 @@ export default function ResultsPage() {
                 Analysis results for {selectedPatient.name}
               </p>
             </div>
+            
             <button
               onClick={() => setShowPatientModal(true)}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex items-center px-4 py-2 bg-blue-600 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700"
             >
               Change Patient
             </button>
+          </div>
+
+          {/* ─────────────────────────────────────────────────────────── */}
+          {/* PATIENT INFO CARD                                         */}
+          {/* ─────────────────────────────────────────────────────────── */}
+          <div className="card mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <div className="flex items-center p-2">
+              {/* <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4"> */}
+              {/* You could place an avatar or icon here */}
+              {/* </div> */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedPatient.name} {`${selectedPatient.father_surname || "N/A"} ${selectedPatient.mother_surname || "N/A"}`}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {/* {selectedPatient.email} */}
+
+                </p>
+                <p className="text-sm text-gray-500">
+                  Birth Date: {selectedPatient.birth_date || "N/A"}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* ─────────────────────────────────────────────────────────── */}
@@ -245,26 +298,7 @@ export default function ResultsPage() {
               </div>
             </div>
           )}
-
-          {/* ─────────────────────────────────────────────────────────── */}
-          {/* PATIENT INFO CARD                                         */}
-          {/* ─────────────────────────────────────────────────────────── */}
-          <div className="card mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <div className="flex items-center p-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                {/* You could place an avatar or icon here */}
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedPatient.name}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Last visit: {selectedPatient.lastVisit || "N/A"}
-                </p>
-              </div>
-            </div>
-          </div>
-
+          
           {/* ─────────────────────────────────────────────────────────── */}
           {/* SESSION DETAILS (when a session is selected)               */}
           {/* ─────────────────────────────────────────────────────────── */}
@@ -295,6 +329,7 @@ export default function ResultsPage() {
                       />
                     </div>
                   )}
+
                 </div>
 
                 {/* ─────────────────────────────────────────────────────── */}
@@ -304,7 +339,7 @@ export default function ResultsPage() {
                   {/* ─────────────────────────────────────────────── */}
                   {/* Model Used Card (border‐purple)                 */}
                   {/* ─────────────────────────────────────────────── */}
-                  <Card className="border-l-4 border-l-purple-500 mb-2 py-3">
+                  <Card className="border-l-4 border-l-purple-500 mb-2 py-3 bg-white">
                     <CardHeader className="py-1">
                       <CardTitle className="flex items-center gap-2 text-base">
                         <Brain className="h-5 w-5 text-purple-600" />
@@ -321,7 +356,7 @@ export default function ResultsPage() {
                   {/* ─────────────────────────────────────────────── */}
                   {/* Dataset Used Card (border‐blue)                */}
                   {/* ─────────────────────────────────────────────── */}
-                  <Card className="border-l-4 border-l-blue-500 mb-2 py-3">
+                  <Card className="border-l-4 border-l-blue-500 mb-2 py-3 bg-white">
                     <CardHeader className="py-1">
                       <CardTitle className="flex items-center gap-2 text-base">
                         <Database className="h-5 w-5 text-blue-600" />
@@ -342,8 +377,8 @@ export default function ResultsPage() {
                           <span>
                             {activeSessionDetail.session_timestamp
                               ? new Date(
-                                  activeSessionDetail.session_timestamp
-                                ).toLocaleDateString()
+                                activeSessionDetail.session_timestamp
+                              ).toLocaleDateString()
                               : "N/A"}
                           </span>
                         </div>
@@ -354,7 +389,7 @@ export default function ResultsPage() {
                   {/* ─────────────────────────────────────────────── */}
                   {/* Processing Info Card (border‐green)             */}
                   {/* ─────────────────────────────────────────────── */}
-                  <Card className="border-l-4 border-l-green-500 mb-2 py-3">
+                  <Card className="border-l-4 border-l-green-500 mb-2 py-3 bg-white">
                     <CardHeader className="py-1">
                       <CardTitle className="flex gap-2 text-base">
                         <Clock className="h-5 w-5 text-green-600" />
@@ -373,26 +408,46 @@ export default function ResultsPage() {
                         <span className="text-gray-900">
                           {activeSessionDetail.session_timestamp
                             ? new Date(
-                                activeSessionDetail.session_timestamp
-                              ).toLocaleString()
+                              activeSessionDetail.session_timestamp
+                            ).toLocaleString()
                             : "N/A"}
                         </span>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="mb-2">
+
+                  {/* ─────────────────────────────────────────────── */}
+                  {/* Patient Historics (border‐purple)                 */}
+                  {/* ─────────────────────────────────────────────── */}
+                  <Card className="border-l-4 border-l-orange-600 mb-2 py-3 bg-white" onClick={() =>
+                    document
+                      .getElementById("patient-historics")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }>
                     <CardHeader className="py-1">
-                      <CardTitle className="flex  gap-2 text-base">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <History className="h-5 w-5 text-orange-600" />
+                        Patient Historics
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+
+
+
+
+                  <Card className="mb-2 py-3 border-l-4 border-l-blue-500 bg-white">
+                    <CardHeader className="py-1">
+                      <CardTitle className="flex gap-2 text-base">
                         <Download className="h-5 w-5 text-gray-600" />
                         Export Data
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="py-1">
-                      <div className="flex gap-2 text-xs text-center">
+                    <CardContent className="px-4">
+                      <div className="flex gap-2 text-xs">
                         <Button
                           asChild
                           variant="outline"
-                          className="justify-center border-green-200 hover:bg-green-50 py-1 text-sm flex-1"
+                          className="flex-1 text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                         >
                           <a
                             href={getResultsCSVUrl(activeSessionId, "y")}
@@ -408,13 +463,13 @@ export default function ResultsPage() {
                         <Button
                           asChild
                           variant="outline"
-                          className="justify-center border-blue-200 hover:bg-blue-50 py-1 text-sm"
+                          className="flex-1 text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                         >
                           <a
                             href={getResultsCSVUrl(activeSessionId, "amp")}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1 flex-1"
+                            className="flex items-center justify-center gap-1"
                           >
                             <Download className="h-4 w-4" />
                             Amplitude
@@ -424,13 +479,13 @@ export default function ResultsPage() {
                         <Button
                           asChild
                           variant="outline"
-                          className="justify-center border-purple-200 hover:bg-purple-50 py-1 text-sm"
+                          className="flex-1 text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                         >
                           <a
                             href={getResultsCSVUrl(activeSessionId, "welch")}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1 flex-1"
+                            className="flex items-center justify-center gap-1"
                           >
                             <Download className="h-4 w-4" />
                             Welch
@@ -439,12 +494,17 @@ export default function ResultsPage() {
                       </div>
                     </CardContent>
                   </Card>
+
                 </div>
               </div>
 
               {/* ─────────────────────────────────────────────── */}
               {/* Data Tables (first 10 rows of amplitude + welch) */}
               {/* ─────────────────────────────────────────────── */}
+              <div className="card mb-8 shadow-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Data Tables
+              </h3>
               {loadingData && (
                 <div className="my-4">
                   <Spinner />
@@ -530,56 +590,61 @@ export default function ResultsPage() {
                 </div>
               )}
             </div>
+            </div>
           )}
 
           {/* ─────────────────────────────────────────────────────────── */}
           {/* SESSIONS GRID (below the details)                         */}
           {/* ─────────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {sessions.map((sess) => (
-              <Card
-                key={sess.id}
-                className={`cursor-pointer border ${
-                  activeSessionId === Number(sess.id)
+          <div className="card mb-8 shadow-lg">
+            <h3 id="patient-historics" className="text-xl font-bold text-gray-900 mb-4">
+              Patient Historics
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 max-h-96 overflow-y-auto">
+              {sessions.map((sess) => (
+                <Card
+                  key={sess.id}
+                  className={`cursor-pointer border ${activeSessionId === Number(sess.id)
                     ? "border-blue-500"
                     : "border-gray-200"
-                }`}
-                onClick={() => setActiveSessionId(Number(sess.id))}
-              >
-                <div className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Session: {sess.name}
+                    }`}
+                  onClick={() => setActiveSessionId(Number(sess.id))}
+                >
+                  <div className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">
+                        Session: {sess.name}
+                      </p>
+                      <p className="text-sm text-gray-500">{sess.description}</p>
+                    </div>
+                    <div className="p-3 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Activity className="h-8 w-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 px-4 pb-4 space-y-1">
+                    <p className="text-sm text-gray-600">
+                      Size: <span className="font-semibold">{sess.size}</span>
                     </p>
-                    <p className="text-sm text-gray-500">{sess.description}</p>
+                    <p className="text-sm text-gray-600">
+                      Last Updated:{" "}
+                      <span className="font-medium">{sess.lastUpdated}</span>
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Algorithm:{" "}
+                      <span className="font-medium">
+                        {sess.algorithm_name || "N/A"}
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Processing Time:{" "}
+                      <span className="font-medium">
+                        {sess.processing_time.toFixed(2)} s
+                      </span>
+                    </p>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="h-6 w-6 text-blue-600 font-bold">S</span>
-                  </div>
-                </div>
-                <div className="mt-4 px-4 pb-4 space-y-1">
-                  <p className="text-sm text-gray-600">
-                    Size: <span className="font-semibold">{sess.size}</span>
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Last Updated:{" "}
-                    <span className="font-medium">{sess.lastUpdated}</span>
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Algorithm:{" "}
-                    <span className="font-medium">
-                      {sess.algorithm_name || "N/A"}
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Processing Time:{" "}
-                    <span className="font-medium">
-                      {sess.processing_time.toFixed(2)} s
-                    </span>
-                  </p>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       )}
