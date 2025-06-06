@@ -53,9 +53,7 @@ function SessionIdReader({ onSessionId }: { onSessionId: (id: number | null) => 
     if (sessionIdParam) {
       const parsed = parseInt(sessionIdParam, 10);
       onSessionId(isNaN(parsed) ? null : parsed);
-    } else {
-      onSessionId(null);
-    }
+    } 
   }, [sessionIdParam, onSessionId]);
 
   return null;
@@ -194,6 +192,7 @@ export default function ResultsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (activeSessionId === null) {
+      console.log("DEBUG: activeSessionId is null → clearing activeSessionDetail");
       setActiveSessionDetail({
         algorithm_name: "N/A",
         processing_time: 0,
@@ -205,17 +204,23 @@ export default function ResultsPage() {
 
     // Find the matching SessionSummary in sessions by ID:
     const found = sessions.find((s) => Number(s.id) === activeSessionId);
+    console.log("DEBUG: found session =", found);
     if (found) {
+      console.log("DEBUG: Setting activeSessionDetail from found session:", found);
       setActiveSessionDetail({
+        
         algorithm_name: found.algorithm_name || "N/A",
         processing_time: found.processing_time || 0,
         session_timestamp: found.lastUpdated, // we'll treat lastUpdated as timestamp
         name: found.name,
+        // console.log("finding")
       });
+      
     } else {
-      // fallback to placeholders
+      console.log(
+      `DEBUG: SessionId ${activeSessionId} not found in sessions — will show Loading...`);
       setActiveSessionDetail({
-        algorithm_name: "N/A",
+        algorithm_name: "Loding Session",
         processing_time: 0,
         session_timestamp: "",
         name: "N/A",
@@ -243,9 +248,140 @@ export default function ResultsPage() {
           {/* Add SessionIdReader here to safely read searchParams */}
           <SessionIdReader onSessionId={(id) => setActiveSessionId(id)} />
   
-          {/* Your existing Results Dashboard UI */}
+          {/* Results Dashboard UI */}
           <div className="px-6 py-8 content-wrapper">
-            {/* ... everything else exactly as you already have it ... */}
+            {/* TITLE & Change Patient button */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+              <div>
+                <h1 className="page-title mb-2">Results Dashboard</h1>
+                <p className="text-gray-600">
+                  Analysis results for {selectedPatient.name}
+                </p>
+              </div>
+  
+              <button
+                onClick={() => setShowPatientModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Change Patient
+              </button>
+            </div>
+  
+            {/* PATIENT INFO CARD */}
+            <div className="card mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <div className="flex items-center p-2">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {selectedPatient.name}{" "}
+                    {`${selectedPatient.father_surname || "N/A"} ${
+                      selectedPatient.mother_surname || "N/A"
+                    }`}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Birth Date: {selectedPatient.birth_date || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+  
+            {/* LOADING / ERROR while fetching sessions */}
+            {loadingSessions && (
+              <div className="card shadow-lg">
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Spinner />
+                    <p className="mt-4 text-lg text-gray-600">
+                      Loading session data...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {errorSessions && (
+              <div className="card shadow-lg bg-red-50 border-red-200">
+                <div className="flex items-start p-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-red-800 mb-2">
+                      Error Loading Data
+                    </h4>
+                    <p className="text-red-700">{errorSessions}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+  
+            {/* SESSION DETAILS */}
+            {activeSessionId ? (
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Session {activeSessionId} Analysis
+                </h3>
+  
+                {/* You had the full grid with plots and info cards here — insert it back here */}
+                {/* You can copy/paste your original Session Details JSX here — it is unchanged */}
+              </div>
+            ) : (
+              <div className="mb-8 text-center text-gray-500">
+                No session selected. Please click a session from Patient Historics.
+              </div>
+            )}
+  
+            {/* PATIENT HISTORICS GRID */}
+            <div className="card mb-8 shadow-lg">
+              <h3
+                id="patient-historics"
+                className="text-xl font-bold text-gray-900 mb-4"
+              >
+                Patient Historics
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 max-h-96 overflow-y-auto">
+                {sessions.map((sess) => (
+                  <Card
+                    key={sess.id}
+                    className={`cursor-pointer border ${
+                      activeSessionId === Number(sess.id)
+                        ? "border-blue-500"
+                        : "border-gray-200"
+                    }`}
+                    onClick={() => setActiveSessionId(Number(sess.id))}
+                  >
+                    <div className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">
+                          Session: {sess.name}
+                        </p>
+                        <p className="text-sm text-gray-500">{sess.description}</p>
+                      </div>
+                      <div className="p-3 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Activity className="h-8 w-8 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="mt-4 px-4 pb-4 space-y-1">
+                      <p className="text-sm text-gray-600">
+                        Size:{" "}
+                        <span className="font-semibold">{sess.size}</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Last Updated:{" "}
+                        <span className="font-medium">{sess.lastUpdated}</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Algorithm:{" "}
+                        <span className="font-medium">
+                          {sess.algorithm_name || "N/A"}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Processing Time:{" "}
+                        <span className="font-medium">
+                          {sess.processing_time.toFixed(2)} s
+                        </span>
+                      </p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         </>
       )}

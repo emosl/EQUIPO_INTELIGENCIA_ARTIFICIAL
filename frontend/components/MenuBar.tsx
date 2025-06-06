@@ -20,7 +20,6 @@ import { useAuth } from "./AuthContext";
 
 const navigation = [
   { name: "Results", href: "/results", icon: BarChart3 },
-  { name: "Upload EEG", href: "/upload", icon: Upload }, // ← new
   { name: "User Manual", href: "/user-manual", icon: BookOpen },
 ];
 
@@ -102,9 +101,9 @@ export default function MenuBar() {
               >
                 {user.avatar ? (
                   <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="h-6 w-6 rounded-full mr-2"
+                    // src={user.avatar}
+                    // alt={user.name}
+                    // className="h-6 w-6 rounded-full mr-2"
                   />
                 ) : (
                   <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center mr-2">
