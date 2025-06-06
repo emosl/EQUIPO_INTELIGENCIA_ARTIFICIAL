@@ -50,10 +50,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * ---------------------------------------------------------------------------
  *  Provider
  * ---------------------------------------------------------------------------
- *
- * NOTE → Place this component at the **root** layout (e.g. `app/layout.tsx`) so that it is
- * mounted exactly once. This avoids re-mount loops that cause unwanted redirects.
  */
+
 export function AuthProvider({ children }: PropsWithChildren<{}>) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +62,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
   const pathname = usePathname();
 
   /**
-   * 1) On first mount → check for a stored JWT and, if present, fetch `/users/me`.
+   * 1) On first mount → check for a stored JWT and, if present, fetch /users/me.
    */
   useEffect(() => {
     (async () => {
@@ -99,10 +97,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
   }, []);
 
   /**
-   * 2) Client-side guard: redirect to `/login` **only** once auth state is known.
-   *    Extra guard → don’t redirect if a token still exists. This prevents a race
-   *    condition where the token is present but the `/users/me` request hasn’t
-   *    finished yet.
+   * 2) Client-side guard: redirect to /login *only* once auth state is known.
    */
   useEffect(() => {
     const tokenExists =
@@ -140,7 +135,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
       body.append("username", email);
       body.append("password", password);
 
-      const res = await fetch(`${BACKEND_URL}/login`, {
+      const res = await fetch(`${BACKEND_URL}/loginApi`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),

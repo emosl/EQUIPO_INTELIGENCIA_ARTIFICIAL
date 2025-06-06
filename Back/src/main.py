@@ -1,5 +1,6 @@
 # backend_main.py
 
+
 import io
 import schemas
 import services
@@ -35,7 +36,7 @@ app.add_middleware(
 )
 
 services.create_database()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # used by FastAPI's dependency later
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/loginApi")  # used by FastAPI's dependency later
 
 @app.post("/users/", response_model=schemas.User)
 def create_user_endpoint(
@@ -51,29 +52,31 @@ def create_user_endpoint(
     created_user = services.create_user(db=db, user=user_in)
     return created_user
 
+
 @app.post("/users/{user_id}/patients", response_model=schemas.Patient)
 def create_patient_for_user(
     user_id: int,
     patient_in: schemas.PatientCreate,
     db: Session = Depends(services.get_db),
-    current_user: models.User = Depends(services.get_current_user)
+    current_user: models.User = Depends(services.get_current_user),
 ):
+    # 1) Verify user exists
     user_obj = db.query(models.User).filter(models.User.id == user_id).first()
     if not user_obj:
-        raise HTTPException(
-            status_code=404,
-            detail=f"User with id {user_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
-    existing = services.get_user_by_email(db, patient_in.email)
+    # 2) Enforce email uniqueness across all users/patients
+    existing = db.query(models.Patient).filter(models.Patient.email == patient_in.email).first()
     if existing:
         raise HTTPException(
             status_code=400,
-            detail="The entered email is already in use, please use another one"
+            detail="The entered email is already in use. Please use another email.",
         )
 
+    # 3) Delegate to our service
     new_patient = services.create_patient(db, user_id, patient_in)
     return new_patient
+
 
 @app.get("/users/{user_id}/patients", response_model=List[schemas.Patient], summary="Get all patients for a specific user")
 def read_patients_for_user(
@@ -98,13 +101,13 @@ def get_current_user_endpoint(
     """
     return current_user
 
-@app.post("/login", response_model=schemas.Token)
+@app.post("/loginApi", response_model=schemas.Token)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(services.get_db),
 ):
     """
-    Accepts form-encoded fields: `username` (our email) and `password`.
+    Accepts form-encoded fields: username (our email) and password.
     If authentication succeeds, returns a JWT access_token.
     """
     # form_data.username is the "username" field in the OAuth2 form; we'll treat that as email

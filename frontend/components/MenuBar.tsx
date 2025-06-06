@@ -13,14 +13,13 @@ import {
   ChevronDown,
   User,
   LogOut,
-  // Note: We don’t need `Users` here since we’re not rendering it in MenuBar
+  // Note: We don’t need Users here since we’re not rendering it in MenuBar
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
 const navigation = [
   { name: "Results", href: "/results", icon: BarChart3 },
-  { name: "Upload EEG", href: "/upload", icon: Upload }, // ← new
   { name: "User Manual", href: "/user-manual", icon: BookOpen },
 ];
 

@@ -19,6 +19,7 @@ import PatientSelectionModal from "../components/PatientSelectionModal";
 import DataSetSelectionModal from "../components/DataSetSelectionModal";
 import ModelSelectionModal from "../components/ModelSelectionModal";
 import { useRouter } from "next/navigation";
+import CreatePatient from "../components/CreatePatient";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -44,6 +45,8 @@ export default function HomePage() {
     "1,0,1,0,1,0,1,0,1,0,1,0,1,0"
   );
   const router = useRouter();
+  const [showCreatePatientModal, setShowCreatePatientModal] = useState(false);
+
 
   // State for doctor's info
   const [doctor, setDoctor] = useState<Doctor | null>(null);
@@ -194,7 +197,7 @@ export default function HomePage() {
           tracking, and medical insights.
         </p>
       </div>
-
+  
       {/* Patient Selection Section */}
       <div className="card mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -203,7 +206,7 @@ export default function HomePage() {
             Patient Selection
           </h2>
         </div>
-
+  
         {selectedPatient ? (
           <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center">
@@ -242,9 +245,10 @@ export default function HomePage() {
           </div>
         )}
       </div>
-
+  
       {/* Configuration Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* DataSet Card */}
         <div className="card">
           <div className="flex items-center mb-4">
             <Database className="h-6 w-6 text-blue-600 mr-3" />
@@ -254,12 +258,8 @@ export default function HomePage() {
           </div>
           {selectedDataSet ? (
             <div className="mb-4">
-              <p className="font-medium text-gray-900">
-                {selectedDataSet.name}
-              </p>
-              <p className="text-sm text-gray-600">
-                {selectedDataSet.description}
-              </p>
+              <p className="font-medium text-gray-900">{selectedDataSet.name}</p>
+              <p className="text-sm text-gray-600">{selectedDataSet.description}</p>
             </div>
           ) : (
             <p className="text-gray-500 mb-4">No data set selected</p>
@@ -271,7 +271,8 @@ export default function HomePage() {
             {selectedDataSet ? "Change Data Set" : "Select Data Set"}
           </button>
         </div>
-
+  
+        {/* Model Card */}
         <div className="card">
           <div className="flex items-center mb-4">
             <Brain className="h-6 w-6 text-purple-600 mr-3" />
@@ -299,7 +300,7 @@ export default function HomePage() {
           </button>
         </div>
       </div>
-
+  
       {/* Winning Combination Configuration */}
       <div className="card mb-8">
         <div className="flex items-center mb-4">
@@ -313,7 +314,7 @@ export default function HomePage() {
           Enter 14 comma-separated values (0 or 1) for: AF3, F7, F3, FC5, T7,
           P7, O1, O2, P8, T8, FC6, F4, F8, AF4
         </p>
-
+  
         <div className="space-y-3">
           <div>
             <label
@@ -331,7 +332,7 @@ export default function HomePage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono text-sm"
             />
           </div>
-
+  
           {!validateWinningCombination(winningCombination) &&
             winningCombination && (
               <p className="text-sm text-red-600">
@@ -340,7 +341,7 @@ export default function HomePage() {
             )}
         </div>
       </div>
-
+  
       {/* Run EnKF Section */}
       {selectedPatient && selectedDataSet && selectedModels.length > 0 && (
         <div className="card mb-8 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
@@ -350,9 +351,7 @@ export default function HomePage() {
                 Ready to Run Analysis
               </h3>
               <p className="text-sm text-gray-600">
-                Patient: {selectedPatient.name} • Dataset:{" "}
-                {selectedDataSet.name} • Models: {selectedModels.length}{" "}
-                selected • wC: [{winningCombination}]
+                Patient: {selectedPatient.name} • Dataset: {selectedDataSet.name} • Models: {selectedModels.length} selected • wC: [{winningCombination}]
               </p>
             </div>
             <button
@@ -377,7 +376,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
+  
       {/* Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {features.map((feature) => {
@@ -385,7 +384,7 @@ export default function HomePage() {
           const isDisabled =
             (feature.name === "Results" || feature.name === "Historic Data") &&
             !selectedPatient;
-
+  
           return (
             <div
               key={feature.name}
@@ -404,9 +403,7 @@ export default function HomePage() {
               <p className="text-gray-600 mb-4">{feature.description}</p>
               {isDisabled ? (
                 <div className="flex items-center text-gray-400">
-                  <span className="text-sm font-medium">
-                    Select a patient first
-                  </span>
+                  <span className="text-sm font-medium">Select a patient first</span>
                 </div>
               ) : (
                 <Link
@@ -421,18 +418,28 @@ export default function HomePage() {
           );
         })}
       </div>
-
+  
       {/* Modals */}
       <PatientSelectionModal
         isOpen={showPatientModal}
         onClose={() => setShowPatientModal(false)}
+        onCreateNewPatient={() => {
+          setShowPatientModal(false);
+          setShowCreatePatientModal(true);
+        }}
       />
+  
+      {showCreatePatientModal && (
+        <CreatePatient onClose={() => setShowCreatePatientModal(false)} />
+      )}
+  
       <DataSetSelectionModal
         isOpen={showDataSetModal}
         onClose={() => setShowDataSetModal(false)}
         selectedDataSet={selectedDataSet}
         onSelectDataSet={setSelectedDataSet}
       />
+  
       <ModelSelectionModal
         isOpen={showModelModal}
         onClose={() => setShowModelModal(false)}
