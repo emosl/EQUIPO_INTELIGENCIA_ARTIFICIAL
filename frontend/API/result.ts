@@ -3,19 +3,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment variable validation with helpful error messages
 // ─────────────────────────────────────────────────────────────────────────────
-const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
-const RESULT_BASE = process.env.NEXT_PUBLIC_RESULT_BASE_URL;
+const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_URL!;
+const RESULT_BASE = process.env.NEXT_PUBLIC_KALMAN_URL!;
 
 // Validate environment variables are set
 if (!BACKEND_BASE) {
   throw new Error(
-    "NEXT_PUBLIC_BACKEND_BASE_URL is not set. Please add it to your .env.local file (e.g., http://localhost:8000)"
+    "NEXT_PUBLIC_BACKEND_BASE_URL is not set. Please add it to your .env.local file "
   );
 }
 
 if (!RESULT_BASE) {
   throw new Error(
-    "NEXT_PUBLIC_RESULT_BASE_URL is not set. Please add it to your .env.local file (e.g., http://localhost:8001)"
+    "NEXT_PUBLIC_RESULT_BASE_URL is not set. Please add it to your .env.local file"
   );
 }
 
@@ -39,7 +39,6 @@ export interface SessionSummary {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1️⃣  Fetch all sessions for the current authenticated user.
-//     ↳ Calls GET http://localhost:8000/sessions
 //     We read the JWT from localStorage and send it in the Authorization header.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getSessionsForPatient(): Promise<SessionSummary[]> {
@@ -90,7 +89,6 @@ export function getResultsCSVUrl(
   sessionId: number,
   kind: "y" | "amp" | "welch"
 ): string {
-  // e.g. "http://localhost:8001/sessions/42/results/csv?type=y"
   return `${RESULT_BASE}/sessions/${sessionId}/results/csv?type=${kind}`;
 }
 
@@ -181,10 +179,8 @@ export async function fetchWelchArrays(
 // 5️⃣  Build "plot" URLs on RESULTS server (port 8001)
 // ─────────────────────────────────────────────────────────────────────────────
 export function getAmplitudePlotUrl(sessionId: number): string {
-  // e.g. "http://localhost:8001/sessions/42/plot/amplitude.png"
   return `${RESULT_BASE}/sessions/${sessionId}/plot/amplitude.png`;
 }
 export function getWelchPlotUrl(sessionId: number): string {
-  // e.g. "http://localhost:8001/sessions/42/plot/welch.png"
   return `${RESULT_BASE}/sessions/${sessionId}/plot/welch.png`;
 }

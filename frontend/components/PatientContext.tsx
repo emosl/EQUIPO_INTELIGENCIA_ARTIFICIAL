@@ -30,31 +30,43 @@ const PatientContext = createContext<PatientContextValue | undefined>(
   undefined
 );
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export function PatientProvider({ children }: { children: ReactNode }) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   async function fetchPatients() {
-    // Replace this with your actual “GET /users/{user_id}/patients” call.
-    // For example, read token/userId from localStorage and hit your FastAPI route.
+    if (!BACKEND_URL) {
+      console.error("BACKEND_URL is not defined");
+      return;
+    }
+
     const token = localStorage.getItem("access_token");
     const userId = localStorage.getItem("user_id");
     if (!token || !userId) return;
 
-    const res = await fetch(`http://localhost:8000/users/${userId}/patients`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!res.ok) throw new Error("Failed to fetch patients");
-    const list = (await res.json()) as Patient[];
-    setPatients(list);
+    try {
+      const res = await fetch(`${BACKEND_URL}/users/${userId}/patients`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch patients");
+      }
+      const list = (await res.json()) as Patient[];
+      setPatients(list);
+    } catch (err) {
+      console.error("Error fetching patients:", err);
+    }
   }
 
-  // Optionally, fetch on mount if you want.
+  // You can choose to fetch on mount or only when modal opens
   useEffect(() => {
-    // …or wait until your modal opens to call fetchPatients()
+    // If you want to load patients immediately on provider mount, uncomment:
+    // fetchPatients();
   }, []);
 
   return (

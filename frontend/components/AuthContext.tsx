@@ -1,3 +1,5 @@
+// src/context/AuthContext.tsx
+
 "use client";
 
 import React, {
@@ -8,6 +10,13 @@ import React, {
   PropsWithChildren,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
+
+/**
+ * ---------------------------------------------------------------------------
+ *  Environment Variable for Backend URL
+ * ---------------------------------------------------------------------------
+ */
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 /**
  * ---------------------------------------------------------------------------
@@ -43,7 +52,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * ---------------------------------------------------------------------------
  *
  * NOTE → Place this component at the **root** layout (e.g. `app/layout.tsx`) so that it is
- * mounted exactly once. This avoids re‑mount loops that cause unwanted redirects.
+ * mounted exactly once. This avoids re-mount loops that cause unwanted redirects.
  */
 export function AuthProvider({ children }: PropsWithChildren<{}>) {
   const [user, setUser] = useState<User | null>(null);
@@ -60,9 +69,9 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
   useEffect(() => {
     (async () => {
       const token = localStorage.getItem("access_token");
-      if (token) {
+      if (token && BACKEND_URL) {
         try {
-          const res = await fetch("http://localhost:8000/users/me", {
+          const res = await fetch(`${BACKEND_URL}/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
 
@@ -90,7 +99,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
   }, []);
 
   /**
-   * 2) Client‑side guard: redirect to `/login` **only** once auth state is known.
+   * 2) Client-side guard: redirect to `/login` **only** once auth state is known.
    *    Extra guard → don’t redirect if a token still exists. This prevents a race
    *    condition where the token is present but the `/users/me` request hasn’t
    *    finished yet.
@@ -119,12 +128,19 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
     setIsLoading(true);
     setJustLoggedIn(true);
 
+    if (!BACKEND_URL) {
+      console.error("BACKEND_URL is not defined");
+      setIsLoading(false);
+      setJustLoggedIn(false);
+      return false;
+    }
+
     try {
       const body = new URLSearchParams();
       body.append("username", email);
       body.append("password", password);
 
-      const res = await fetch("http://localhost:8000/login", {
+      const res = await fetch(`${BACKEND_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
@@ -135,7 +151,7 @@ export function AuthProvider({ children }: PropsWithChildren<{}>) {
       const { access_token } = await res.json();
       localStorage.setItem("access_token", access_token);
 
-      const meRes = await fetch("http://localhost:8000/users/me", {
+      const meRes = await fetch(`${BACKEND_URL}/users/me`, {
         headers: { Authorization: `Bearer ${access_token}` },
       });
 

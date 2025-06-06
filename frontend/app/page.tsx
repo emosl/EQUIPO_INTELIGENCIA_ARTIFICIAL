@@ -19,6 +19,8 @@ import PatientSelectionModal from "../components/PatientSelectionModal";
 import DataSetSelectionModal from "../components/DataSetSelectionModal";
 import ModelSelectionModal from "../components/ModelSelectionModal";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 interface Doctor {
   id: number;
   name: string;
@@ -47,12 +49,14 @@ export default function HomePage() {
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
   // Fetch /users/me on mount
+  // Fixed useEffect hook
   useEffect(() => {
     if (!token) return;
 
     (async () => {
       try {
-        const res = await fetch("http://localhost:8000/users/me", {
+        const res = await fetch(`${BACKEND_URL}/users/me`, {
+          // Changed from /run-kalman
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -102,23 +106,20 @@ export default function HomePage() {
       console.log("Starting EnKF analysis - this may take 2-8 minutes...");
 
       // Call your main backend to trigger the Kalman API
-      const response = await fetch(
-        "http://localhost:8000/trigger-kalman-analysis",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            session_id: parseInt(selectedDataSet.id),
-            patient_id: selectedPatient.id,
-            models: selectedModels.map((m) => m.name),
-            dataset_name: selectedDataSet.name,
-            winning_combination: wCArray, // Add this
-          }),
-        }
-      );
+      const response = await fetch(`${BACKEND_URL}/trigger-kalman-analysis`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_id: parseInt(selectedDataSet.id),
+          patient_id: selectedPatient.id,
+          models: selectedModels.map((m) => m.name),
+          dataset_name: selectedDataSet.name,
+          winning_combination: wCArray, // Add this
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`Analysis failed: ${await response.text()}`);

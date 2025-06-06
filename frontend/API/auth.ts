@@ -1,4 +1,9 @@
-// API/auth.ts
+// src/API/auth.ts
+
+// Read the base URL from your .env (Next.js) or plain .env file.
+// In Next.js, you must prefix it with NEXT_PUBLIC_ if you want it exposed to the browser.
+
+const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
 export interface LoginPayload {
   email: string;
@@ -11,12 +16,13 @@ export interface TokenResponse {
 }
 
 export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
-  // Build a URL‐encoded form (FastAPI’s OAuth2PasswordRequestForm expects "username" + "password")
+  // FastAPI’s OAuth2PasswordRequestForm expects "username" + "password"
   const form = new URLSearchParams();
-  form.append("username", payload.email); // notice we call it "username"
+  form.append("username", payload.email);
   form.append("password", payload.password);
 
-  const response = await fetch("http://localhost:8000/login", {
+  // Use BACKEND_BASE from env instead of hard-coding
+  const response = await fetch(`${BACKEND_BASE}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -28,5 +34,5 @@ export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
     const errorJson = await response.json().catch(() => ({}));
     throw new Error(errorJson.detail || "Login failed");
   }
-  return response.json(); // { access_token, token_type }
+  return response.json();
 }

@@ -3,8 +3,7 @@
 //  🎯 This file is solely responsible for “user + patient” CRUD,
 //      so it always points at port 8000 (your main FastAPI server).
 
-const USER_API_BASE =
-  process.env.NEXT_PUBLIC_USER_API_BASE_URL || "http://localhost:8000";
+const USER_API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export interface CreateUser {
   name: string;

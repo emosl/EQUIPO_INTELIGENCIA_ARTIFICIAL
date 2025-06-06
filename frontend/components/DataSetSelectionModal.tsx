@@ -7,6 +7,8 @@ import { X, Database, Check, Upload, Loader2, Plus } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { usePatient } from "@/components/PatientContext";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export interface DataSet {
   id: string;
   name: string;
@@ -51,14 +53,17 @@ export default function DataSetSelectionModal({
     };
 
     async function fetchSessions() {
+      if (!BACKEND_URL) {
+        setDataSets([createNewOption]);
+        return;
+      }
       try {
         const token = localStorage.getItem("access_token");
-        const res = await fetch("http://localhost:8000/sessions", {
+        const res = await fetch(`${BACKEND_URL}/sessions`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const json: DataSet[] = await res.json();
-
           // Filter out sessions that have no EEG data (size === "0 B")
           const withData = json.filter((ds) => ds.size !== "0 B");
           setDataSets([createNewOption, ...withData]);
@@ -93,7 +98,7 @@ export default function DataSetSelectionModal({
   }
 
   async function handleConfirm() {
-    if (!selectedDataSet || !file) return;
+    if (!selectedDataSet || !file || !BACKEND_URL) return;
     setUploadState("uploading");
 
     try {
@@ -106,7 +111,7 @@ export default function DataSetSelectionModal({
 
         // Create new session for the selected patient
         const createRes = await fetch(
-          "http://localhost:8000/create-session-for-patient",
+          `${BACKEND_URL}/create-session-for-patient`,
           {
             method: "POST",
             headers: {
@@ -127,10 +132,10 @@ export default function DataSetSelectionModal({
 
         // Upload CSV to the new session
         const fd = new FormData();
-        fd.append("session_id", session_id);
+        fd.append("session_id", session_id.toString());
         fd.append("file", file);
 
-        const uploadRes = await fetch("http://localhost:8000/upload/csv", {
+        const uploadRes = await fetch(`${BACKEND_URL}/upload/csv`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
@@ -143,7 +148,7 @@ export default function DataSetSelectionModal({
         fd.append("session_id", selectedDataSet.id);
         fd.append("file", file);
 
-        const res = await fetch("http://localhost:8000/upload/csv", {
+        const res = await fetch(`${BACKEND_URL}/upload/csv`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
@@ -258,56 +263,31 @@ export default function DataSetSelectionModal({
                 />
               </div>
               {/* File picker */}
-          <div>
-            <input
-              ref={fileInputRef}
-              id="csv-file"
-              type="file"
-              accept=".csv"
-              onChange={handleFilePick}
-              className="hidden"
-              aria-label="Choose EEG CSV file"
-            />
-            <label
-              htmlFor="csv-file"
-              className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              {file ? file.name : "Click to choose EEG CSV…"}
-            </label>
-            {!file && (
-              <p className="mt-1 text-xs text-gray-500">
-                CSV must include af3, f7, f3, fc5, …, af4 columns.
-              </p>
-            )}
-          </div>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  id="csv-file"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFilePick}
+                  className="hidden"
+                  aria-label="Choose EEG CSV file"
+                />
+                <label
+                  htmlFor="csv-file"
+                  className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+                >
+                  <Upload className="h-5 w-5 mr-2" />
+                  {file ? file.name : "Click to choose EEG CSV…"}
+                </label>
+                {!file && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    CSV must include af3, f7, f3, fc5, …, af4 columns.
+                  </p>
+                )}
+              </div>
             </div>
           )}
-
-          {/* File picker
-          <div>
-            <input
-              ref={fileInputRef}
-              id="csv-file"
-              type="file"
-              accept=".csv"
-              onChange={handleFilePick}
-              className="hidden"
-              aria-label="Choose EEG CSV file"
-            />
-            <label
-              htmlFor="csv-file"
-              className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              {file ? file.name : "Click to choose EEG CSV…"}
-            </label>
-            {!file && (
-              <p className="mt-1 text-xs text-gray-500">
-                CSV must include af3, f7, f3, fc5, …, af4 columns.
-              </p>
-            )}
-          </div> */}
         </div>
 
         {/* Footer */}

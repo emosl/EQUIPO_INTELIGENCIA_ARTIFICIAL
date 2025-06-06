@@ -29,6 +29,8 @@ import {
   HardDrive,
 } from "lucide-react";
 
+const KALMAN_URL = process.env.NEXT_PUBLIC_KALMAN_URL;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Simple Spinner stub—replace or import your own if you have one.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +279,7 @@ export default function ResultsPage() {
                 <div className="lg:col-span-2 overflow-y-auto p-4 space-y-4">
                   <div>
                     <img
-                      src={`http://localhost:8001/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
+                      src={`${KALMAN_URL}/sessions/${activeSessionId}/plot/amplitude_orig_vs_all.png`}
                       alt={`Original vs All plot for session ${activeSessionId}`}
                       className="w-full h-auto border rounded-md"
                     />
@@ -285,7 +287,7 @@ export default function ResultsPage() {
                   {welchData && (
                     <div>
                       <img
-                        src={`http://localhost:8001/sessions/${activeSessionId}/plot/welch.png`}
+                        src={`${KALMAN_URL}/sessions/${activeSessionId}/plot/welch.png`}
                         alt={`Welch PSD plot for session ${activeSessionId}`}
                         className="w-full h-auto border rounded-md"
                       />
