@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useRouter } from "next/router";  
+import { useSearchParams } from "next/navigation";
 import {
   Brain,
   Database,
@@ -54,6 +56,11 @@ interface SessionDetail {
 export default function ResultsPage() {
   const { selectedPatient } = usePatient();
   const [showPatientModal, setShowPatientModal] = useState(false);
+  // const router = useRouter();
+  // const { sessionId } = router.query; 
+  // In the App Router, useSearchParams() is the way to read ?sessionId=…
+  const searchParams = useSearchParams();
+  const sessionIdParam = searchParams.get("sessionId");
 
   // ────────────────────────────────────────────────────────────────────────────
   // State: all sessions for this user
@@ -76,6 +83,7 @@ export default function ResultsPage() {
   const [welchData, setWelchData] = useState<WelchResponse | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [errorData, setErrorData] = useState<string | null>(null);
+  
 
   // ────────────────────────────────────────────────────────────────────────────
   // State: session‐detail placeholder (algorithm_name, processing_time, timestamp)
@@ -89,6 +97,14 @@ export default function ResultsPage() {
     }
   );
 
+  useEffect(() => {
+    if (sessionIdParam && selectedPatient && typeof sessionIdParam === "string") {
+      const parsed = parseInt(sessionIdParam, 10);
+      if (!isNaN(parsed)) {
+        setActiveSessionId(parsed);
+      }
+    }
+  }, [sessionIdParam, selectedPatient]);
   // ────────────────────────────────────────────────────────────────────────────
   // (1️⃣) Fetch all sessions for the user whenever the selected patient changes.
   //       Then filter to keep only those sessions that have amplitude data on port 8001.
@@ -101,6 +117,8 @@ export default function ResultsPage() {
         ? localStorage.getItem("access_token")
         : null;
     if (!token) return;
+    setLoadingSessions(true);
+    setErrorSessions(null);
 
     getSessionsForPatient()
       .then(async (allSessions) => {

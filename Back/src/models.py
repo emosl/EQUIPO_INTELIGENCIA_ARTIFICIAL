@@ -55,8 +55,7 @@ class Session(Base):
     algorithm_name    = Column(String(100), nullable=True)
 
     # NEW: how long (in seconds) the Kalman run took
-    processing_time   = Column(Float, nullable=True)
-
+    processing_time = Column(Float, nullable=False, default=0.0)
     # → existing relationships…
     patient      = relationship("Patient", back_populates="sessions")
     eeg_data     = relationship("EegData", back_populates="session")
