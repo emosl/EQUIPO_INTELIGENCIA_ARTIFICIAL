@@ -260,12 +260,6 @@ export default function CreatePatient({ onClose }: CreatePatientProps) {
             </div>
           )}
 
-          {/* Debug info - remove in production */}
-          <div className="mb-4 p-3 bg-gray-100 rounded text-xs font-mono">
-            <p>Current email value: "{newPatientData.email}"</p>
-            <p>Email length: {newPatientData.email.length}</p>
-          </div>
-
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* First Name */}

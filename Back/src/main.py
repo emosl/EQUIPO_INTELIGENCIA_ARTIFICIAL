@@ -242,7 +242,9 @@ def create_session_for_patient(
     session = models.Session(
         patient_id=patient.id,
         session_timestamp=datetime.now(),
-        flag=session_name
+        flag=session_name,
+        algorithm_name=None,
+        processing_time=0.0
     )
     db.add(session)
     db.commit()
@@ -436,3 +438,54 @@ def get_session_results(
             for r in results
         ]
     }
+
+# ────────────────────────────────────────────────────────────────────────────
+# Get all sessions for a specific patient (must belong to current user)
+# ────────────────────────────────────────────────────────────────────────────
+@app.get("/patients/{patient_id}/sessions", response_model=List[schemas.SessionSummary])
+def get_sessions_for_patient(
+    patient_id: int,
+    db: Session = Depends(services.get_db),
+    current_user: models.User = Depends(services.get_current_user)
+):
+    # 1) Verify the patient belongs to the current user
+    patient = (
+        db.query(models.Patient)
+        .filter(models.Patient.id == patient_id, models.Patient.user_id == current_user.id)
+        .first()
+    )
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found or access denied")
+
+    # 2) Gather all Session rows for that patient
+    sessions = (
+        db.query(models.Session)
+        .filter(models.Session.patient_id == patient_id)
+        .all()
+    )
+
+    formatted_sessions: List[dict] = []
+    for session in sessions:
+        eeg_count = db.query(models.EegData).filter(
+            models.EegData.session_id == session.id
+        ).count()
+
+        size_bytes = eeg_count * 14 * 8
+        if size_bytes < 1024:
+            size = f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            size = f"{size_bytes // 1024} KB"
+        else:
+            size = f"{size_bytes // (1024 * 1024)} MB"
+
+        formatted_sessions.append({
+            "id": str(session.id),
+            "name": f"Session {session.id} - {patient.name} {patient.father_surname}",
+            "description": f"EEG session for patient {patient.name}, recorded on {session.session_timestamp.strftime('%Y-%m-%d')}",
+            "size": size,
+            "lastUpdated": session.session_timestamp.strftime('%Y-%m-%d %H:%M'),
+            "algorithm_name": session.algorithm_name or "",
+            "processing_time": float(session.processing_time or 0.0)
+        })
+
+    return formatted_sessions

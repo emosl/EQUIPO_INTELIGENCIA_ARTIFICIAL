@@ -55,6 +55,18 @@ class Session(SessionBase):
     class Config:
         from_attributes = True
 
+class SessionSummary(BaseModel):
+    id: str
+    name: str
+    description: str
+    size: str
+    lastUpdated: str
+    algorithm_name: Optional[str]
+    processing_time: float
+
+    class Config:
+        orm_mode = True
+
 # EEGData Classes
 class EegDataBase(BaseModel):
     af3: float

@@ -41,7 +41,9 @@ export interface SessionSummary {
 // 1️⃣  Fetch all sessions for the current authenticated user.
 //     We read the JWT from localStorage and send it in the Authorization header.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getSessionsForPatient(): Promise<SessionSummary[]> {
+export async function getSessionsForPatient(
+  patientId: number
+): Promise<SessionSummary[]> {
   // 1) Read the token that AuthContext stored in localStorage
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -50,10 +52,10 @@ export async function getSessionsForPatient(): Promise<SessionSummary[]> {
     throw new Error("No access token found. You must be logged in.");
   }
 
-  console.log("Fetching sessions from:", `${BACKEND_BASE}/sessions`);
+  console.log("Fetching sessions for patient:", patientId);
 
   try {
-    const res = await fetch(`${BACKEND_BASE}/sessions`, {
+    const res = await fetch(`${BACKEND_BASE}/patients/${patientId}/sessions`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
