@@ -206,11 +206,18 @@ export default function ResultsPage() {
 
   return (
     <>
+      {/* If no patient is selected */}
       {!selectedPatient ? (
         <div className="py-16 text-center content-wrapper">
           <p className="text-gray-600 mb-4">
             No patient selected. Please choose a patient to view their results.
           </p>
+          <button
+            onClick={() => setShowPatientModal(true)}
+            className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors font-medium"
+          >
+            Select Patient
+          </button>
         </div>
       ) : (
 
