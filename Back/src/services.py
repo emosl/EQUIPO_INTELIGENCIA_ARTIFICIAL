@@ -17,7 +17,7 @@ from fastapi import Depends, HTTPException, status
 
 settings = Settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/loginApi")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -66,7 +66,8 @@ def create_patient(db: Session, user_id: int, patient_in: schemas.PatientCreate)
         father_surname=patient_in.father_surname,
         mother_surname=patient_in.mother_surname,
         birth_date=patient_in.birth_date,
-        sex=patient_in.sex
+        sex=patient_in.sex,
+        email=patient_in.email
     )
     db.add(new_patient)
     db.commit()
@@ -76,14 +77,14 @@ def create_patient(db: Session, user_id: int, patient_in: schemas.PatientCreate)
 
 def get_password_hash(plain_password: str) -> str:
     """
-    Hashes `plain_password` with bcrypt and returns the hash string.
+    Hashes plain_password with bcrypt and returns the hash string.
     """
     return pwd_context.hash(plain_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Returns True if `plain_password` matches the `hashed_password`.
+    Returns True if plain_password matches the hashed_password.
     """
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -93,8 +94,8 @@ def create_access_token(
     expires_delta: Optional[timedelta] = None
 ) -> str:
     """
-    Create a JWT token containing `data` (normally {"sub": <email>})
-    that expires in `expires_delta`. If `expires_delta` is None, uses
+    Create a JWT token containing data (normally {"sub": <email>})
+    that expires in expires_delta. If expires_delta is None, uses
     settings.ACCESS_TOKEN_EXPIRE_MINUTES.
     """
     to_encode = data.copy()
@@ -111,7 +112,7 @@ def create_access_token(
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
     """
-    Verify that a user with `email` exists and that `password` matches
+    Verify that a user with email exists and that password matches
     their stored hashed_password. Return the User object on success, or None.
     """
     user = db.query(models.User).filter(models.User.email == email).first()

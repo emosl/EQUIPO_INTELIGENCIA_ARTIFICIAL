@@ -13,7 +13,7 @@ import {
   ChevronDown,
   User,
   LogOut,
-  // Note: We don’t need `Users` here since we’re not rendering it in MenuBar
+  // Note: We don’t need Users here since we’re not rendering it in MenuBar
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "./AuthContext";
@@ -101,9 +101,9 @@ export default function MenuBar() {
               >
                 {user.avatar ? (
                   <img
-                    // src={user.avatar}
-                    // alt={user.name}
-                    // className="h-6 w-6 rounded-full mr-2"
+                    src={user.avatar}
+                    alt={user.name}
+                    className="h-6 w-6 rounded-full mr-2"
                   />
                 ) : (
                   <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center mr-2">

@@ -22,7 +22,7 @@ export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
   form.append("password", payload.password);
 
   // Use BACKEND_BASE from env instead of hard-coding
-  const response = await fetch(`${BACKEND_BASE}/login`, {
+  const response = await fetch(`${BACKEND_BASE}/loginApi`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -34,5 +34,6 @@ export async function loginUser(payload: LoginPayload): Promise<TokenResponse> {
     const errorJson = await response.json().catch(() => ({}));
     throw new Error(errorJson.detail || "Login failed");
   }
+  
   return response.json();
 }
