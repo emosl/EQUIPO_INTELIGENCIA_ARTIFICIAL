@@ -130,6 +130,7 @@ export default function ResultsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedPatient?.id) return;
+    setActiveSessionId(null);
     setSessions([]);
 
     const token =
@@ -618,7 +619,7 @@ export default function ResultsPage() {
 
             {/* PATIENT HISTORICS GRID */}
             {/* PATIENT HISTORICS GRID */}
-            <div className="card mb-8 shadow-lg">
+            <div className="card mb-8 shadow-lg mt-2">
               <h3
                 id="patient-historics"
                 className="text-xl font-bold text-gray-900 mb-4"
